@@ -7,6 +7,10 @@ const healthRouter = require('./routes/health.routes');
 const authRouter = require('./routes/auth.routes');
 const adminRouter = require('./routes/admin.routes');
 const servicesRouter = require('./routes/services.routes');
+const favoritesRouter = require('./routes/favorites.routes');
+const reviewsRouter = require('./routes/reviews.routes');
+const bookingsRouter = require('./routes/bookings.routes');
+const interactionsRouter = require('./routes/interactions.routes');
 const { errorMiddleware } = require('./middleware/error.middleware');
 
 const app = express();
@@ -27,6 +31,10 @@ app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/services', servicesRouter);
+app.use('/api/favorites', favoritesRouter);
+app.use('/api/reviews', reviewsRouter);
+app.use('/api/bookings', bookingsRouter);
+app.use('/api/interactions', interactionsRouter);
 
 app.use((req, res) => {
   res.status(404).json({
