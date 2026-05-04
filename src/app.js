@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const healthRouter = require('./routes/health.routes');
 const authRouter = require('./routes/auth.routes');
 const adminRouter = require('./routes/admin.routes');
+const servicesRouter = require('./routes/services.routes');
 const { errorMiddleware } = require('./middleware/error.middleware');
 
 const app = express();
@@ -25,6 +26,7 @@ app.get('/', (_req, res) => {
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/services', servicesRouter);
 
 app.use((req, res) => {
   res.status(404).json({
