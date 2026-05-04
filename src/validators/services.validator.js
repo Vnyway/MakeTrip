@@ -140,4 +140,5 @@ module.exports = {
   listQuerySchema,
   uuidSchema,
   serviceKindEnum,
+  serviceStatusEnum,
 };

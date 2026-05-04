@@ -577,6 +577,7 @@ async function fetchKindOnly(serviceId) {
 }
 
 module.exports = {
+  mapServiceRow,
   listServices,
   getServiceById,
   createService,

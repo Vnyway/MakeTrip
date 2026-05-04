@@ -12,6 +12,7 @@ const reviewsRouter = require('./routes/reviews.routes');
 const bookingsRouter = require('./routes/bookings.routes');
 const interactionsRouter = require('./routes/interactions.routes');
 const toursRouter = require('./routes/tours.routes');
+const recommendationsRouter = require('./routes/recommendations.routes');
 const { errorMiddleware } = require('./middleware/error.middleware');
 
 const app = express();
@@ -37,6 +38,7 @@ app.use('/api/reviews', reviewsRouter);
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/interactions', interactionsRouter);
 app.use('/api/tours', toursRouter);
+app.use('/api/recommendations', recommendationsRouter);
 
 app.use((req, res) => {
   res.status(404).json({
