@@ -1,5 +1,12 @@
-import { PageShell } from '../../components/ui/PageShell';
+import { CatalogPageTemplate } from '../../features/catalog/CatalogPageTemplate';
 
 export function CatalogPage() {
-  return <PageShell title="Catalog" description="User catalog route shell with filters and listing area placeholder." />;
+  return (
+    <CatalogPageTemplate
+      title="Browse All Services"
+      subtitle="Search travel offers across hotels, restaurants, activities, and flights."
+      recommendationTitle="Recommended for You"
+      showKindFilter
+    />
+  );
 }

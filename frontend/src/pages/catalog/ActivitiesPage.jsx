@@ -1,5 +1,14 @@
-import { PageShell } from '../../components/ui/PageShell';
+import { CatalogPageTemplate } from '../../features/catalog/CatalogPageTemplate';
 
 export function ActivitiesPage() {
-  return <PageShell title="Activities" description="User route shell for activities catalog." />;
+  return (
+    <CatalogPageTemplate
+      title="Activities"
+      subtitle="Discover experiences, tickets, and excursions."
+      fixedKind="activity"
+      recommendationTitle="Recommended Activities"
+      showKindFilter={false}
+      showActivityKind
+    />
+  );
 }

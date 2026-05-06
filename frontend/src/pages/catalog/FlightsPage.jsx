@@ -1,5 +1,14 @@
-import { PageShell } from '../../components/ui/PageShell';
+import { CatalogPageTemplate } from '../../features/catalog/CatalogPageTemplate';
 
 export function FlightsPage() {
-  return <PageShell title="Flights" description="User route shell for flights catalog." />;
+  return (
+    <CatalogPageTemplate
+      title="Flights"
+      subtitle="Browse route options and compare prices."
+      fixedKind="flight"
+      recommendationTitle="Recommended Flights"
+      showKindFilter={false}
+      showFlightFields
+    />
+  );
 }
