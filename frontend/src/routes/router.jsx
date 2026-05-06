@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
+import { AuthLayout } from '../layouts/AuthLayout';
 import { GuestOnlyRoute, UserRoute, AdminRoute } from './guards';
 import { HomePage } from '../pages/HomePage';
 import { LoginPage } from '../pages/auth/LoginPage';
@@ -27,9 +28,7 @@ import { NotFoundPage } from '../pages/NotFoundPage';
 export function AppRouter() {
   return (
     <Routes>
-      <Route element={<AppLayout />}>
-        <Route path="/" element={<HomePage />} />
-
+      <Route element={<AuthLayout />}>
         <Route
           path="/login"
           element={
@@ -46,6 +45,10 @@ export function AppRouter() {
             </GuestOnlyRoute>
           }
         />
+      </Route>
+
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<HomePage />} />
 
         <Route
           path="/catalog"

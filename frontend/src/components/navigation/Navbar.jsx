@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../app/auth';
 
 const publicItems = [{ to: '/', label: 'Home' }];
@@ -48,6 +49,7 @@ function ItemLink({ to, label, onNavigate }) {
 
 export function Navbar() {
   const auth = useAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
   const desktopItems = [
@@ -56,6 +58,12 @@ export function Navbar() {
     ...(auth.isAuthenticated ? accountItems : []),
     ...(auth.isAdmin ? adminItems : []),
   ];
+
+  function handleLogout() {
+    auth.logout();
+    toast.success('Signed out successfully.');
+    navigate('/login');
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-mint-200 bg-surface/90 backdrop-blur">
@@ -81,7 +89,7 @@ export function Navbar() {
               </Link>
             </>
           ) : (
-            <button className="btn-soft" onClick={auth.logout} type="button">
+            <button className="btn-soft" onClick={handleLogout} type="button">
               Log out
             </button>
           )}
@@ -121,7 +129,7 @@ export function Navbar() {
               <button
                 className="btn-soft mt-2"
                 onClick={() => {
-                  auth.logout();
+                  handleLogout();
                   setOpen(false);
                 }}
                 type="button"
