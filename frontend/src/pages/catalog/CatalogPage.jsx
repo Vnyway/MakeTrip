@@ -1,8 +1,5 @@
+import { PageShell } from '../../components/ui/PageShell';
+
 export function CatalogPage() {
-  return (
-    <section className="space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">Catalog</h1>
-      <p className="text-slate-600">Catalog UI and filters will be added in the next implementation step.</p>
-    </section>
-  );
+  return <PageShell title="Catalog" description="User catalog route shell with filters and listing area placeholder." />;
 }

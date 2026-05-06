@@ -5,15 +5,21 @@ export default {
     extend: {
       colors: {
         brand: {
-          DEFAULT: '#0f172a',
+          DEFAULT: '#272643',
           foreground: '#ffffff',
         },
+        surface: '#ffffff',
+        mint: {
+          100: '#e3f6f5',
+          200: '#bae8e8',
+        },
+        accent: '#2c698d',
       },
       borderRadius: {
         xl: '1rem',
       },
       boxShadow: {
-        card: '0 6px 24px rgba(15, 23, 42, 0.08)',
+        card: '0 6px 24px rgba(39, 38, 67, 0.12)',
       },
     },
   },
