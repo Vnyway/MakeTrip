@@ -182,7 +182,7 @@ export function CatalogPageTemplate({
         onPageChange={setPage}
       />
 
-      <RecommendationBlock title={recommendationTitle} />
+      <RecommendationBlock title={recommendationTitle} filters={apiParams} limit={4} />
 
       <AddToTourModal
         service={addToTourService}
