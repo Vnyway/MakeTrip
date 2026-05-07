@@ -10,6 +10,7 @@ import { RecommendationBlock } from '../../components/catalog/RecommendationBloc
 import { getServices } from './catalog.api';
 import { useCatalogQueryState } from './useCatalogQueryState';
 import { getErrorMessage } from '../../lib/errors';
+import { useFavorites } from '../favorites/useFavorites';
 
 function mapApiError(error) {
   return getErrorMessage(error, 'Failed to load services.');
@@ -58,6 +59,7 @@ export function CatalogPageTemplate({
   showFlightFields = false,
 }) {
   const { query, apiParams, applyFilters, setPage } = useCatalogQueryState({ fixedKind });
+  const favorites = useFavorites();
 
   const [searchText, setSearchText] = useState(query.q || '');
   const [filters, setFilters] = useState(() => defaultFilterState(query, fixedKind));
@@ -158,7 +160,14 @@ export function CatalogPageTemplate({
           }
         >
           {services.map((service) => (
-            <ServiceCard key={service.id} service={service} view={view} />
+            <ServiceCard
+              key={service.id}
+              service={service}
+              view={view}
+              isFavorite={favorites.isFavorite(service.id)}
+              onToggleFavorite={() => favorites.toggleFavorite(service.id)}
+              favoriteLoading={favorites.isToggling}
+            />
           ))}
         </div>
       )}

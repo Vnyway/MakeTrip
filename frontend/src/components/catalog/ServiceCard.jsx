@@ -1,4 +1,5 @@
 import { Heart, MapPin, Star, Clock3, Plane, UtensilsCrossed, Hotel } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { getKindLabel } from '../../features/catalog/catalog.constants';
 
 function KindIcon({ kind }) {
@@ -26,7 +27,31 @@ function formatPrice(value) {
   return `$${Number(value || 0).toFixed(0)}`;
 }
 
-export function ServiceCard({ service, view = 'grid' }) {
+function FavoriteButton({ active, onClick, disabled = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${
+        active
+          ? 'border-red-200 bg-white text-red-500'
+          : 'border-white/80 bg-white/90 text-brand hover:bg-white'
+      }`}
+      aria-label={active ? 'Remove from favorites' : 'Add to favorites'}
+    >
+      <Heart size={16} fill={active ? 'currentColor' : 'none'} />
+    </button>
+  );
+}
+
+export function ServiceCard({
+  service,
+  view = 'grid',
+  isFavorite = false,
+  onToggleFavorite,
+  favoriteLoading = false,
+}) {
   if (view === 'list') {
     return (
       <article className="flex flex-col gap-3 rounded-xl border border-mint-200 bg-white p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
@@ -39,8 +64,22 @@ export function ServiceCard({ service, view = 'grid' }) {
         </div>
 
         <div className="flex items-center gap-3">
+          {typeof onToggleFavorite === 'function' ? (
+            <button
+              type="button"
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-full border ${
+                isFavorite ? 'border-red-200 bg-white text-red-500' : 'border-mint-200 bg-white text-brand'
+              }`}
+              onClick={onToggleFavorite}
+              disabled={favoriteLoading}
+            >
+              <Heart size={16} fill={isFavorite ? 'currentColor' : 'none'} />
+            </button>
+          ) : null}
           <p className="text-xl font-bold text-brand">{formatPrice(service.price_usd)}</p>
-          <button className="btn-soft">View details</button>
+          <Link to={`/services/${service.id}`} className="btn-soft">
+            View details
+          </Link>
           <button className="btn-primary">Add to Tour</button>
         </div>
       </article>
@@ -50,12 +89,9 @@ export function ServiceCard({ service, view = 'grid' }) {
   return (
     <article className="relative overflow-hidden rounded-xl border border-mint-200 bg-white shadow-card">
       <div className="h-40 bg-gradient-to-br from-accent/70 via-brand/80 to-brand" />
-      <button
-        type="button"
-        className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-brand"
-      >
-        <Heart size={16} />
-      </button>
+      {typeof onToggleFavorite === 'function' ? (
+        <FavoriteButton active={isFavorite} onClick={onToggleFavorite} disabled={favoriteLoading} />
+      ) : null}
       <div className="space-y-2 p-4">
         <div className="inline-flex items-center gap-1 rounded-full bg-mint-100 px-2 py-1 text-xs text-brand">
           <KindIcon kind={service.kind} /> {getKindLabel(service.kind).toLowerCase()}
@@ -72,7 +108,9 @@ export function ServiceCard({ service, view = 'grid' }) {
         <div className="mt-3 flex items-center justify-between border-t border-mint-200 pt-3">
           <p className="text-xl font-bold text-brand">{formatPrice(service.price_usd)}</p>
           <div className="flex gap-2">
-            <button className="btn-soft px-2 py-1.5 text-xs">View</button>
+            <Link to={`/services/${service.id}`} className="btn-soft px-2 py-1.5 text-xs">
+              View
+            </Link>
             <button className="btn-primary px-2 py-1.5 text-xs">Add to Tour</button>
           </div>
         </div>
