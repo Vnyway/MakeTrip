@@ -1,16 +1,23 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Heart, MapPin, Star } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, Heart, MapPin, Star, Minus, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { z } from 'zod';
 import { api } from '../../lib/api';
 import { getErrorMessage } from '../../lib/errors';
 import { useFavorites } from '../../features/favorites/useFavorites';
+import { createBooking } from '../../features/bookings/bookings.api';
 
 const reviewSchema = z.object({
   rating: z.coerce.number().int().min(1).max(5),
   comment: z.string().trim().max(5000).optional(),
+});
+
+const bookingSchema = z.object({
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  persons_count: z.number().int().positive(),
 });
 
 function getKindLabel(kind) {
@@ -66,6 +73,8 @@ function RelatedServiceCard({ item, favorites }) {
 export function ServiceDetailsPage() {
   const { id } = useParams();
   const favorites = useFavorites();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -73,6 +82,12 @@ export function ServiceDetailsPage() {
   const [comment, setComment] = useState('');
   const [showAddToTour, setShowAddToTour] = useState(false);
   const [tourForm, setTourForm] = useState({ tourId: '', day_number: 1, position: 0, quantity: 1, note: '' });
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingForm, setBookingForm] = useState({
+    start_date: '',
+    end_date: '',
+    persons_count: 1,
+  });
 
   const serviceQuery = useQuery({
     queryKey: ['service', id],
@@ -202,6 +217,33 @@ export function ServiceDetailsPage() {
     onError: (error) => toast.error(getErrorMessage(error, 'Could not add to tour.')),
   });
 
+  const bookingMutation = useMutation({
+    mutationFn: async ({ start_date, end_date, persons_count }) => {
+      const start = new Date(`${start_date}T00:00:00`);
+      const end = new Date(`${end_date}T00:00:00`);
+      const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000);
+      const nights = diffDays > 0 ? diffDays : 1;
+      const totalPrice = Number(serviceQuery.data?.price_usd || 0) * persons_count * nights;
+
+      return createBooking({
+        service_id: id,
+        start_date,
+        end_date,
+        persons_count,
+        total_price_usd: totalPrice,
+        status: 'pending',
+      });
+    },
+    onSuccess: async (booking) => {
+      toast.success('Booking created.');
+      setShowBookingModal(false);
+      setBookingForm({ start_date: '', end_date: '', persons_count: 1 });
+      await queryClient.invalidateQueries({ queryKey: ['bookings', 'mine'] });
+      navigate(`/bookings/${booking.id}`);
+    },
+    onError: (error) => toast.error(getErrorMessage(error, 'Could not create booking.')),
+  });
+
   const media = mediaQuery.data || [];
   const activeMedia = media[activeIndex];
 
@@ -215,6 +257,20 @@ export function ServiceDetailsPage() {
       count: list.length,
     };
   }, [reviewsQuery.data]);
+
+  const bookingSummary = useMemo(() => {
+    const { start_date, end_date, persons_count } = bookingForm;
+    if (!start_date || !end_date || !persons_count) {
+      return { nights: 0, total: 0 };
+    }
+
+    const start = new Date(`${start_date}T00:00:00`);
+    const end = new Date(`${end_date}T00:00:00`);
+    const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000);
+    const nights = diffDays > 0 ? diffDays : 1;
+    const total = Number(serviceQuery.data?.price_usd || 0) * persons_count * nights;
+    return { nights, total };
+  }, [bookingForm, serviceQuery.data?.price_usd]);
 
   if (serviceQuery.isLoading) {
     return <div className="rounded-xl border border-mint-200 bg-white p-8 text-sm text-accent shadow-card">Loading service details...</div>;
@@ -345,7 +401,7 @@ export function ServiceDetailsPage() {
           <div className="rounded-xl border border-mint-200 bg-mint-100 p-4">
             <p className="text-xs text-accent">Price from</p>
             <p className="text-3xl font-bold text-brand">${Number(service.price_usd || 0).toFixed(0)}</p>
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
               <button
                 type="button"
                 className={`btn-soft ${isFavorite ? 'text-red-500' : ''}`}
@@ -357,6 +413,9 @@ export function ServiceDetailsPage() {
               </button>
               <button type="button" className="btn-primary" onClick={() => setShowAddToTour(true)}>
                 Add to Tour
+              </button>
+              <button type="button" className="btn-primary" onClick={() => setShowBookingModal(true)}>
+                Book now
               </button>
             </div>
             <button type="button" className="btn-soft mt-2 w-full" onClick={() => setShowReviewForm((prev) => !prev)}>
@@ -499,6 +558,128 @@ export function ServiceDetailsPage() {
           ) : null}
         </div>
       </div>
+
+      {showBookingModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand/35 p-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-mint-200 bg-white shadow-card">
+            <div className="flex items-start justify-between border-b border-mint-200 p-5">
+              <div>
+                <h3 className="text-2xl font-semibold text-brand">Complete Your Booking</h3>
+                <p className="text-sm text-accent">{service.title}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBookingModal(false)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-accent hover:bg-mint-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form
+              className="space-y-4 p-5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                try {
+                  const parsed = bookingSchema.parse(bookingForm);
+                  const start = new Date(`${parsed.start_date}T00:00:00`);
+                  const end = new Date(`${parsed.end_date}T00:00:00`);
+                  if (end < start) {
+                    toast.error('Check-out date cannot be earlier than check-in date.');
+                    return;
+                  }
+                  bookingMutation.mutate(parsed);
+                } catch (error) {
+                  toast.error(getErrorMessage(error, 'Invalid booking data.'));
+                }
+              }}
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-brand" htmlFor="bookingStartDate">
+                    Check-in Date
+                  </label>
+                  <input
+                    id="bookingStartDate"
+                    type="date"
+                    value={bookingForm.start_date}
+                    onChange={(event) => setBookingForm((prev) => ({ ...prev, start_date: event.target.value }))}
+                    className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm text-brand"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-brand" htmlFor="bookingEndDate">
+                    Check-out Date
+                  </label>
+                  <input
+                    id="bookingEndDate"
+                    type="date"
+                    value={bookingForm.end_date}
+                    onChange={(event) => setBookingForm((prev) => ({ ...prev, end_date: event.target.value }))}
+                    className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm text-brand"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-surface p-3 text-sm text-brand">
+                Duration: <span className="font-semibold">{bookingSummary.nights} nights</span>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-brand">Number of Guests</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setBookingForm((prev) => ({ ...prev, persons_count: Math.max(1, Number(prev.persons_count) - 1) }))
+                    }
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-mint-200 bg-surface text-brand"
+                  >
+                    <Minus size={14} />
+                  </button>
+                  <div className="flex h-10 min-w-20 items-center justify-center rounded-lg border border-mint-200 bg-surface px-3 text-brand">
+                    {bookingForm.persons_count}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setBookingForm((prev) => ({ ...prev, persons_count: Number(prev.persons_count) + 1 }))}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-brand bg-white text-brand"
+                  >
+                    <Plus size={14} />
+                  </button>
+                  <span className="text-sm text-accent">{bookingForm.persons_count} people</span>
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-surface p-4">
+                <h4 className="text-xl font-semibold text-brand">Price Summary</h4>
+                <div className="mt-2 flex items-center justify-between text-sm text-accent">
+                  <span>
+                    ${Number(service.price_usd || 0).toFixed(0)} x {bookingForm.persons_count} guests x {bookingSummary.nights} nights
+                  </span>
+                  <span className="font-semibold text-brand">${Number(bookingSummary.total || 0).toFixed(0)}</span>
+                </div>
+                <div className="my-3 h-px bg-mint-200" />
+                <div className="flex items-end justify-between">
+                  <span className="text-lg text-accent">Total Price (USD)</span>
+                  <span className="text-4xl font-semibold text-brand">${Number(bookingSummary.total || 0).toFixed(0)}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button type="button" className="btn-soft" onClick={() => setShowBookingModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={bookingMutation.isPending}>
+                  {bookingMutation.isPending ? 'Creating...' : 'Proceed to Payment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       <section className="space-y-3">
         <h2 className="text-xl font-semibold text-brand">Reviews</h2>

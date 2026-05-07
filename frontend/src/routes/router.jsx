@@ -13,6 +13,7 @@ import { FlightsPage } from '../pages/catalog/FlightsPage';
 import { ServiceDetailsPage } from '../pages/services/ServiceDetailsPage';
 import { FavoritesPage } from '../pages/user/FavoritesPage';
 import { BookingsPage } from '../pages/user/BookingsPage';
+import { BookingDetailsPage } from '../pages/user/BookingDetailsPage';
 import { ReviewsPage } from '../pages/user/ReviewsPage';
 import { RecommendationsPage } from '../pages/user/RecommendationsPage';
 import { ToursPage } from '../pages/user/ToursPage';
@@ -111,6 +112,14 @@ export function AppRouter() {
           element={
             <UserRoute>
               <BookingsPage />
+            </UserRoute>
+          }
+        />
+        <Route
+          path="/bookings/:id"
+          element={
+            <UserRoute>
+              <BookingDetailsPage />
             </UserRoute>
           }
         />
