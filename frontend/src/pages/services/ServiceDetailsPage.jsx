@@ -8,6 +8,7 @@ import { api } from '../../lib/api';
 import { getErrorMessage } from '../../lib/errors';
 import { useFavorites } from '../../features/favorites/useFavorites';
 import { createBooking } from '../../features/bookings/bookings.api';
+import { AddToTourModal } from '../../components/tours/AddToTourModal';
 
 const reviewSchema = z.object({
   rating: z.coerce.number().int().min(1).max(5),
@@ -80,8 +81,7 @@ export function ServiceDetailsPage() {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
-  const [showAddToTour, setShowAddToTour] = useState(false);
-  const [tourForm, setTourForm] = useState({ tourId: '', day_number: 1, position: 0, quantity: 1, note: '' });
+  const [showAddToTourModal, setShowAddToTourModal] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingForm, setBookingForm] = useState({
     start_date: '',
@@ -162,15 +162,6 @@ export function ServiceDetailsPage() {
     enabled: Boolean(id) && Boolean(serviceQuery.data?.kind),
   });
 
-  const toursQuery = useQuery({
-    queryKey: ['tours'],
-    queryFn: async () => {
-      const { data } = await api.get('/api/tours');
-      return data.tours || [];
-    },
-    enabled: showAddToTour,
-  });
-
   const reviewMutation = useMutation({
     mutationFn: async (payload) => {
       try {
@@ -198,23 +189,6 @@ export function ServiceDetailsPage() {
       await reviewsQuery.refetch();
     },
     onError: (error) => toast.error(getErrorMessage(error, 'Could not submit review.')),
-  });
-
-  const addToTourMutation = useMutation({
-    mutationFn: async (payload) => {
-      await api.post(`/api/tours/${payload.tourId}/items`, {
-        service_id: id,
-        day_number: payload.day_number,
-        position: payload.position,
-        quantity: payload.quantity,
-        note: payload.note || null,
-      });
-    },
-    onSuccess: () => {
-      toast.success('Added to tour.');
-      setShowAddToTour(false);
-    },
-    onError: (error) => toast.error(getErrorMessage(error, 'Could not add to tour.')),
   });
 
   const bookingMutation = useMutation({
@@ -411,7 +385,7 @@ export function ServiceDetailsPage() {
                 <Heart size={14} className="mr-1 inline-block" fill={isFavorite ? 'currentColor' : 'none'} />
                 {isFavorite ? 'Remove favorite' : 'Add to favorites'}
               </button>
-              <button type="button" className="btn-primary" onClick={() => setShowAddToTour(true)}>
+              <button type="button" className="btn-primary" onClick={() => setShowAddToTourModal(true)}>
                 Add to Tour
               </button>
               <button type="button" className="btn-primary" onClick={() => setShowBookingModal(true)}>
@@ -470,92 +444,6 @@ export function ServiceDetailsPage() {
             </form>
           ) : null}
 
-          {showAddToTour ? (
-            <form
-              className="space-y-2 rounded-lg border border-mint-200 bg-white p-3"
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (!tourForm.tourId) {
-                  toast.error('Select a tour first.');
-                  return;
-                }
-
-                addToTourMutation.mutate({
-                  ...tourForm,
-                  day_number: Number(tourForm.day_number),
-                  position: Number(tourForm.position),
-                  quantity: Number(tourForm.quantity),
-                });
-              }}
-            >
-              <h3 className="text-sm font-semibold text-brand">Add to Tour</h3>
-
-              <label className="block text-sm font-medium text-brand" htmlFor="tourId">
-                Tour
-              </label>
-              <select
-                id="tourId"
-                value={tourForm.tourId}
-                onChange={(event) => setTourForm((prev) => ({ ...prev, tourId: event.target.value }))}
-                className="w-full rounded-md border border-mint-200 bg-white px-3 py-2 text-sm"
-              >
-                <option value="">Select tour</option>
-                {(toursQuery.data || []).map((tour) => (
-                  <option key={tour.id} value={tour.id}>
-                    {tour.title}
-                  </option>
-                ))}
-              </select>
-
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  type="number"
-                  min={1}
-                  value={tourForm.day_number}
-                  onChange={(event) => setTourForm((prev) => ({ ...prev, day_number: event.target.value }))}
-                  className="rounded-md border border-mint-200 px-2 py-2 text-sm"
-                  placeholder="Day"
-                />
-                <input
-                  type="number"
-                  min={0}
-                  value={tourForm.position}
-                  onChange={(event) => setTourForm((prev) => ({ ...prev, position: event.target.value }))}
-                  className="rounded-md border border-mint-200 px-2 py-2 text-sm"
-                  placeholder="Position"
-                />
-                <input
-                  type="number"
-                  min={1}
-                  value={tourForm.quantity}
-                  onChange={(event) => setTourForm((prev) => ({ ...prev, quantity: event.target.value }))}
-                  className="rounded-md border border-mint-200 px-2 py-2 text-sm"
-                  placeholder="Qty"
-                />
-              </div>
-
-              <textarea
-                value={tourForm.note}
-                onChange={(event) => setTourForm((prev) => ({ ...prev, note: event.target.value }))}
-                className="min-h-20 w-full rounded-md border border-mint-200 px-3 py-2 text-sm"
-                placeholder="Optional note"
-              />
-
-              <div className="flex gap-2">
-                <button type="submit" className="btn-primary" disabled={addToTourMutation.isPending || toursQuery.isLoading}>
-                  {addToTourMutation.isPending ? 'Adding...' : 'Add'}
-                </button>
-                <button type="button" className="btn-soft" onClick={() => setShowAddToTour(false)}>
-                  Cancel
-                </button>
-              </div>
-
-              {toursQuery.isLoading ? <p className="text-xs text-accent">Loading tours...</p> : null}
-              {!toursQuery.isLoading && !(toursQuery.data || []).length ? (
-                <p className="text-xs text-accent">No tours found. Create one first in the Tours page.</p>
-              ) : null}
-            </form>
-          ) : null}
         </div>
       </div>
 
@@ -680,6 +568,11 @@ export function ServiceDetailsPage() {
           </div>
         </div>
       ) : null}
+      <AddToTourModal
+        service={service}
+        open={showAddToTourModal}
+        onClose={() => setShowAddToTourModal(false)}
+      />
 
       <section className="space-y-3">
         <h2 className="text-xl font-semibold text-brand">Reviews</h2>

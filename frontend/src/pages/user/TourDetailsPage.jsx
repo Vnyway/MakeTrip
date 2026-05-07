@@ -1,8 +1,355 @@
-import { useParams } from 'react-router-dom';
-import { PageShell } from '../../components/ui/PageShell';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useParams } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { addTourItem, deleteTourItem, getTourDetails, updateTour, updateTourItem } from '../../features/tours/tours.api';
+import { getErrorMessage } from '../../lib/errors';
+
+function groupByDay(items) {
+  const grouped = items.reduce((acc, item) => {
+    const key = item.day_number;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+
+  Object.keys(grouped).forEach((key) => {
+    grouped[key].sort((a, b) => a.position - b.position);
+  });
+
+  return grouped;
+}
 
 export function TourDetailsPage() {
   const { id } = useParams();
+  const queryClient = useQueryClient();
+  const [manualForm, setManualForm] = useState({
+    service_id: '',
+    day_number: 1,
+    position: 0,
+    quantity: 1,
+    note: '',
+  });
+  const [editTourMode, setEditTourMode] = useState(false);
+  const [tourEditForm, setTourEditForm] = useState({ title: '', notes: '' });
 
-  return <PageShell title={`Tour ${id}`} description="Tour constructor details route shell." />;
+  const detailsQuery = useQuery({
+    queryKey: ['tour', id],
+    queryFn: () => getTourDetails(id),
+    enabled: Boolean(id),
+  });
+
+  const updateTourMutation = useMutation({
+    mutationFn: (payload) => updateTour(id, payload),
+    onSuccess: async () => {
+      toast.success('Tour updated.');
+      setEditTourMode(false);
+      await queryClient.invalidateQueries({ queryKey: ['tours'] });
+      await queryClient.invalidateQueries({ queryKey: ['tour', id] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error, 'Could not update tour.')),
+  });
+
+  const addItemMutation = useMutation({
+    mutationFn: (payload) => addTourItem(id, payload),
+    onSuccess: async () => {
+      toast.success('Item added.');
+      setManualForm({ service_id: '', day_number: 1, position: 0, quantity: 1, note: '' });
+      await queryClient.invalidateQueries({ queryKey: ['tour', id] });
+      await queryClient.invalidateQueries({ queryKey: ['tours'] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error, 'Could not add item.')),
+  });
+
+  const updateItemMutation = useMutation({
+    mutationFn: ({ itemId, body }) => updateTourItem(id, itemId, body),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['tour', id] });
+      await queryClient.invalidateQueries({ queryKey: ['tours'] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error, 'Could not update item.')),
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: (itemId) => deleteTourItem(id, itemId),
+    onSuccess: async () => {
+      toast.success('Item removed.');
+      await queryClient.invalidateQueries({ queryKey: ['tour', id] });
+      await queryClient.invalidateQueries({ queryKey: ['tours'] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error, 'Could not remove item.')),
+  });
+
+  const groupedItems = useMemo(() => groupByDay(detailsQuery.data?.items || []), [detailsQuery.data?.items]);
+  const dayNumbers = useMemo(() => Object.keys(groupedItems).map(Number).sort((a, b) => a - b), [groupedItems]);
+  const allItems = detailsQuery.data?.items || [];
+  const grandTotal = allItems.reduce(
+    (acc, item) => acc + Number(item.service?.price_usd || 0) * Number(item.quantity || 1),
+    0,
+  );
+
+  if (detailsQuery.isLoading) {
+    return <div className="rounded-2xl border border-mint-200 bg-white p-6 text-sm text-accent shadow-card">Loading tour...</div>;
+  }
+
+  if (detailsQuery.error) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-white p-6 text-sm text-red-600 shadow-card">
+        {getErrorMessage(detailsQuery.error, 'Failed to load tour.')}
+      </div>
+    );
+  }
+
+  const tour = detailsQuery.data?.tour;
+  if (!tour) {
+    return <div className="rounded-2xl border border-mint-200 bg-white p-6 text-sm text-accent shadow-card">Tour not found.</div>;
+  }
+
+  return (
+    <section className="space-y-6">
+      <div className="flex items-center justify-between">
+        <Link to="/tours" className="text-sm text-accent hover:underline">
+          Back to tours
+        </Link>
+        <Link to={`/tours/${id}/checkout`} className="btn-primary">
+          Book all ({allItems.length})
+        </Link>
+      </div>
+
+      <article className="rounded-2xl border border-mint-200 bg-white p-5 shadow-card">
+        {editTourMode ? (
+          <form
+            className="space-y-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              updateTourMutation.mutate({
+                title: tourEditForm.title.trim(),
+                notes: tourEditForm.notes.trim() || null,
+              });
+            }}
+          >
+            <input
+              value={tourEditForm.title}
+              onChange={(event) => setTourEditForm((prev) => ({ ...prev, title: event.target.value }))}
+              className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm"
+              required
+            />
+            <textarea
+              value={tourEditForm.notes}
+              onChange={(event) => setTourEditForm((prev) => ({ ...prev, notes: event.target.value }))}
+              className="min-h-20 w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm"
+            />
+            <div className="flex gap-2">
+              <button type="submit" className="btn-primary" disabled={updateTourMutation.isPending}>
+                Save
+              </button>
+              <button type="button" className="btn-soft" onClick={() => setEditTourMode(false)}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight text-brand">{tour.title}</h1>
+                <p className="mt-2 text-sm text-accent">
+                  {tour.notes || 'No notes yet. Add services from catalog or service details using "Add to Tour".'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn-soft"
+                onClick={() => {
+                  setEditTourMode(true);
+                  setTourEditForm({ title: tour.title, notes: tour.notes || '' });
+                }}
+              >
+                Edit tour
+              </button>
+            </div>
+          </>
+        )}
+      </article>
+
+      <article className="rounded-2xl border border-mint-200 bg-white p-5 shadow-card">
+        <h2 className="text-lg font-semibold text-brand">Add Item Manually (CRUD)</h2>
+        <p className="mt-1 text-xs text-accent">If needed, you can add an item directly by service id.</p>
+        <form
+          className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            addItemMutation.mutate({
+              service_id: manualForm.service_id.trim(),
+              day_number: Number(manualForm.day_number),
+              position: Number(manualForm.position),
+              quantity: Number(manualForm.quantity),
+              note: manualForm.note || null,
+            });
+          }}
+        >
+          <input
+            value={manualForm.service_id}
+            onChange={(event) => setManualForm((prev) => ({ ...prev, service_id: event.target.value }))}
+            className="rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm lg:col-span-2"
+            placeholder="service_id (uuid)"
+            required
+          />
+          <input
+            type="number"
+            min={1}
+            value={manualForm.day_number}
+            onChange={(event) => setManualForm((prev) => ({ ...prev, day_number: event.target.value }))}
+            className="rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm"
+            placeholder="day"
+          />
+          <input
+            type="number"
+            min={0}
+            value={manualForm.position}
+            onChange={(event) => setManualForm((prev) => ({ ...prev, position: event.target.value }))}
+            className="rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm"
+            placeholder="position"
+          />
+          <input
+            type="number"
+            min={1}
+            value={manualForm.quantity}
+            onChange={(event) => setManualForm((prev) => ({ ...prev, quantity: event.target.value }))}
+            className="rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm"
+            placeholder="qty"
+          />
+          <textarea
+            value={manualForm.note}
+            onChange={(event) => setManualForm((prev) => ({ ...prev, note: event.target.value }))}
+            className="min-h-20 rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm sm:col-span-2 lg:col-span-4"
+            placeholder="note (optional)"
+          />
+          <button type="submit" className="btn-primary" disabled={addItemMutation.isPending}>
+            {addItemMutation.isPending ? 'Adding...' : 'Add item'}
+          </button>
+        </form>
+      </article>
+
+      {!dayNumbers.length ? (
+        <div className="rounded-2xl border border-mint-200 bg-surface p-10 text-center">
+          <p className="text-2xl text-brand">+</p>
+          <p className="mt-2 text-sm text-accent">No activities added yet. Open catalog/services and use "Add to Tour".</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {dayNumbers.map((day) => {
+            const items = groupedItems[day] || [];
+            const dayTotal = items.reduce((acc, item) => acc + Number(item.service?.price_usd || 0) * Number(item.quantity || 1), 0);
+
+            return (
+              <article key={day} className="rounded-2xl border border-mint-200 bg-white p-4 shadow-card">
+                <h2 className="text-xl font-semibold text-brand">Day {day}</h2>
+                <div className="mt-3 space-y-3">
+                  {items.map((item) => (
+                    <div key={item.id} className="rounded-xl border border-mint-200 bg-surface p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <h3 className="text-lg font-semibold text-brand">{item.service?.title}</h3>
+                          <p className="text-xs text-accent">{item.service?.description || 'No description'}</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 text-red-600 hover:bg-red-50"
+                          onClick={() => deleteItemMutation.mutate(item.id)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+
+                      <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                        <input
+                          type="number"
+                          min={1}
+                          value={item.day_number}
+                          onChange={(event) =>
+                            updateItemMutation.mutate({
+                              itemId: item.id,
+                              body: { day_number: Number(event.target.value) },
+                            })
+                          }
+                          className="rounded-lg border border-mint-200 bg-white px-2 py-2 text-sm"
+                          placeholder="day"
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          value={item.position}
+                          onChange={(event) =>
+                            updateItemMutation.mutate({
+                              itemId: item.id,
+                              body: { position: Number(event.target.value) },
+                            })
+                          }
+                          className="rounded-lg border border-mint-200 bg-white px-2 py-2 text-sm"
+                          placeholder="position"
+                        />
+                        <input
+                          type="number"
+                          min={1}
+                          value={item.quantity}
+                          onChange={(event) =>
+                            updateItemMutation.mutate({
+                              itemId: item.id,
+                              body: { quantity: Number(event.target.value) },
+                            })
+                          }
+                          className="rounded-lg border border-mint-200 bg-white px-2 py-2 text-sm"
+                          placeholder="qty"
+                        />
+                        <p className="flex items-center justify-end text-lg font-semibold text-brand">
+                          ${(Number(item.service?.price_usd || 0) * Number(item.quantity || 1)).toFixed(0)}
+                        </p>
+                      </div>
+
+                      <textarea
+                        value={item.note || ''}
+                        onChange={(event) =>
+                          updateItemMutation.mutate({
+                            itemId: item.id,
+                            body: { note: event.target.value || null },
+                          })
+                        }
+                        className="mt-2 min-h-16 w-full rounded-lg border border-mint-200 bg-white px-3 py-2 text-sm"
+                        placeholder="Add notes"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 rounded-lg bg-mint-100 px-3 py-2 text-right text-lg font-semibold text-brand">
+                  Day {day} total: ${dayTotal.toFixed(0)}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <article className="rounded-2xl border border-mint-200 bg-mint-100 p-4 shadow-card">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div>
+            <p className="text-xs text-accent">Total Duration</p>
+            <p className="text-2xl font-semibold text-brand">{dayNumbers.length} days</p>
+          </div>
+          <div>
+            <p className="text-xs text-accent">Total Items</p>
+            <p className="text-2xl font-semibold text-brand">{allItems.length}</p>
+          </div>
+          <div className="sm:text-right">
+            <p className="text-xs text-accent">Grand Total</p>
+            <p className="text-3xl font-semibold text-brand">${grandTotal.toFixed(0)}</p>
+          </div>
+        </div>
+        <Link to={`/tours/${id}/checkout`} className="btn-primary mt-3 flex w-full justify-center">
+          Proceed to checkout
+        </Link>
+      </article>
+    </section>
+  );
 }

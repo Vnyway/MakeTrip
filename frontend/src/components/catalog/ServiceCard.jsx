@@ -51,6 +51,7 @@ export function ServiceCard({
   isFavorite = false,
   onToggleFavorite,
   favoriteLoading = false,
+  onAddToTour,
 }) {
   if (view === 'list') {
     return (
@@ -80,7 +81,9 @@ export function ServiceCard({
           <Link to={`/services/${service.id}`} className="btn-soft">
             View details
           </Link>
-          <button className="btn-primary">Add to Tour</button>
+          <button type="button" className="btn-primary" onClick={() => onAddToTour?.(service)}>
+            Add to Tour
+          </button>
         </div>
       </article>
     );
@@ -111,7 +114,9 @@ export function ServiceCard({
             <Link to={`/services/${service.id}`} className="btn-soft px-2 py-1.5 text-xs">
               View
             </Link>
-            <button className="btn-primary px-2 py-1.5 text-xs">Add to Tour</button>
+            <button type="button" className="btn-primary px-2 py-1.5 text-xs" onClick={() => onAddToTour?.(service)}>
+              Add to Tour
+            </button>
           </div>
         </div>
       </div>

@@ -18,6 +18,7 @@ import { ReviewsPage } from '../pages/user/ReviewsPage';
 import { RecommendationsPage } from '../pages/user/RecommendationsPage';
 import { ToursPage } from '../pages/user/ToursPage';
 import { TourDetailsPage } from '../pages/user/TourDetailsPage';
+import { TourCheckoutPage } from '../pages/user/TourCheckoutPage';
 import { ProfilePage } from '../pages/user/ProfilePage';
 import { AdminPage } from '../pages/admin/AdminPage';
 import { AdminServicesPage } from '../pages/admin/AdminServicesPage';
@@ -152,6 +153,14 @@ export function AppRouter() {
           element={
             <UserRoute>
               <TourDetailsPage />
+            </UserRoute>
+          }
+        />
+        <Route
+          path="/tours/:id/checkout"
+          element={
+            <UserRoute>
+              <TourCheckoutPage />
             </UserRoute>
           }
         />

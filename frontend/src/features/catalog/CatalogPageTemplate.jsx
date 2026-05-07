@@ -7,6 +7,7 @@ import { ServiceCard } from '../../components/catalog/ServiceCard';
 import { ViewToggle } from '../../components/catalog/ViewToggle';
 import { Pagination } from '../../components/catalog/Pagination';
 import { RecommendationBlock } from '../../components/catalog/RecommendationBlock';
+import { AddToTourModal } from '../../components/tours/AddToTourModal';
 import { getServices } from './catalog.api';
 import { useCatalogQueryState } from './useCatalogQueryState';
 import { getErrorMessage } from '../../lib/errors';
@@ -64,6 +65,7 @@ export function CatalogPageTemplate({
   const [searchText, setSearchText] = useState(query.q || '');
   const [filters, setFilters] = useState(() => defaultFilterState(query, fixedKind));
   const [view, setView] = useState('grid');
+  const [addToTourService, setAddToTourService] = useState(null);
 
   useEffect(() => {
     setSearchText(query.q || '');
@@ -167,6 +169,7 @@ export function CatalogPageTemplate({
               isFavorite={favorites.isFavorite(service.id)}
               onToggleFavorite={() => favorites.toggleFavorite(service.id)}
               favoriteLoading={favorites.isToggling}
+              onAddToTour={setAddToTourService}
             />
           ))}
         </div>
@@ -180,6 +183,12 @@ export function CatalogPageTemplate({
       />
 
       <RecommendationBlock title={recommendationTitle} />
+
+      <AddToTourModal
+        service={addToTourService}
+        open={Boolean(addToTourService)}
+        onClose={() => setAddToTourService(null)}
+      />
     </section>
   );
 }
