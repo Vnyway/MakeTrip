@@ -2,6 +2,9 @@ import { Star, MapPin } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getMyReviews } from '../../features/reviews/reviews.api';
+import { EmptyState, ErrorState } from '../../components/ui/AsyncState';
+import { getErrorMessage } from '../../lib/errors';
+import { MotionFade } from '../../components/ui/MotionFade';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -119,18 +122,19 @@ export function ReviewsPage() {
             <ReviewSkeletonCard key={idx} />
           ))}
         </div>
+      ) : query.error ? (
+        <ErrorState message={getErrorMessage(query.error, 'Failed to load reviews.')} />
       ) : items.length === 0 ? (
-        <div className="flex min-h-[50vh] flex-col items-center justify-center rounded-2xl border border-mint-200 bg-white p-8 text-center shadow-card">
-          <Star size={40} className="text-accent" />
-          <h2 className="mt-4 text-xl font-semibold text-brand">You have not left any reviews yet</h2>
-          <p className="mt-2 text-sm text-accent">
-            After staying in hotels, visiting restaurants or activities you can rate them here.
-          </p>
-        </div>
+        <EmptyState
+          title="You have not left any reviews yet"
+          description="After staying in hotels, visiting restaurants or activities you can rate them here."
+        />
       ) : (
         <div className="space-y-3">
-          {items.map((item) => (
-            <ReviewCard key={item.id} item={item} />
+          {items.map((item, idx) => (
+            <MotionFade key={item.id} delay={Math.min(idx * 0.03, 0.18)}>
+              <ReviewCard item={item} />
+            </MotionFade>
           ))}
         </div>
       )}

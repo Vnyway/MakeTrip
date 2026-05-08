@@ -12,6 +12,8 @@ import { getServices } from './catalog.api';
 import { useCatalogQueryState } from './useCatalogQueryState';
 import { getErrorMessage } from '../../lib/errors';
 import { useFavorites } from '../favorites/useFavorites';
+import { EmptyState, ErrorState, LoadingState } from '../../components/ui/AsyncState';
+import { MotionFade } from '../../components/ui/MotionFade';
 
 function mapApiError(error) {
   return getErrorMessage(error, 'Failed to load services.');
@@ -148,11 +150,11 @@ export function CatalogPageTemplate({
       </div>
 
       {queryResult.isLoading ? (
-        <div className="rounded-xl border border-mint-200 bg-white p-8 text-sm text-accent shadow-card">Loading services...</div>
+        <LoadingState message="Loading services..." />
+      ) : queryResult.error ? (
+        <ErrorState message={mapApiError(queryResult.error)} />
       ) : noResults ? (
-        <div className="rounded-xl border border-mint-200 bg-white p-8 text-sm text-accent shadow-card">
-          No services found for current filters.
-        </div>
+        <EmptyState title="No services found" description="Try changing search filters or reset them to see more results." />
       ) : (
         <div
           className={
@@ -161,16 +163,17 @@ export function CatalogPageTemplate({
               : 'flex flex-col gap-3'
           }
         >
-          {services.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              view={view}
-              isFavorite={favorites.isFavorite(service.id)}
-              onToggleFavorite={() => favorites.toggleFavorite(service.id)}
-              favoriteLoading={favorites.isToggling}
-              onAddToTour={setAddToTourService}
-            />
+          {services.map((service, idx) => (
+            <MotionFade key={service.id} delay={Math.min(idx * 0.03, 0.18)}>
+              <ServiceCard
+                service={service}
+                view={view}
+                isFavorite={favorites.isFavorite(service.id)}
+                onToggleFavorite={() => favorites.toggleFavorite(service.id)}
+                favoriteLoading={favorites.isToggling}
+                onAddToTour={setAddToTourService}
+              />
+            </MotionFade>
           ))}
         </div>
       )}

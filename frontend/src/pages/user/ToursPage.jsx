@@ -5,6 +5,8 @@ import { CalendarDays, Pencil, Trash2, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createTour, deleteTour, listTours, updateTour } from '../../features/tours/tours.api';
 import { getErrorMessage } from '../../lib/errors';
+import { EmptyState, ErrorState, LoadingState } from '../../components/ui/AsyncState';
+import { MotionFade } from '../../components/ui/MotionFade';
 
 export function ToursPage() {
   const queryClient = useQueryClient();
@@ -88,20 +90,23 @@ export function ToursPage() {
       </article>
 
       {toursQuery.isLoading ? (
-        <div className="rounded-2xl border border-mint-200 bg-white p-6 text-sm text-accent shadow-card">Loading tours...</div>
+        <LoadingState message="Loading tours..." />
+      ) : toursQuery.error ? (
+        <ErrorState message={getErrorMessage(toursQuery.error, 'Failed to load tours.')} />
       ) : !(toursQuery.data || []).length ? (
-        <div className="rounded-2xl border border-mint-200 bg-white p-8 text-center shadow-card">
-          <h2 className="text-xl font-semibold text-brand">No tours yet</h2>
-          <p className="mt-2 text-sm text-accent">Create your first tour and start adding services from catalog pages.</p>
-        </div>
+        <EmptyState
+          title="No tours yet"
+          description="Create your first tour and start adding services from catalog pages."
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {(toursQuery.data || []).map((tour) => {
+          {(toursQuery.data || []).map((tour, idx) => {
             const isEditing = editingId === tour.id;
 
             return (
-              <article key={tour.id} className="rounded-2xl border border-mint-200 bg-white p-4 shadow-card">
-                {isEditing ? (
+              <MotionFade key={tour.id} delay={Math.min(idx * 0.03, 0.18)}>
+                <article className="rounded-2xl border border-mint-200 bg-white p-4 shadow-card">
+                  {isEditing ? (
                   <form
                     className="space-y-2"
                     onSubmit={(event) => {
@@ -135,7 +140,7 @@ export function ToursPage() {
                       </button>
                     </div>
                   </form>
-                ) : (
+                  ) : (
                   <>
                     <h3 className="text-xl font-semibold text-brand">{tour.title}</h3>
                     <p className="mt-2 line-clamp-2 text-sm text-accent">{tour.notes || 'No notes yet.'}</p>
@@ -170,8 +175,9 @@ export function ToursPage() {
                       </button>
                     </div>
                   </>
-                )}
-              </article>
+                  )}
+                </article>
+              </MotionFade>
             );
           })}
         </div>

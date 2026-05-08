@@ -268,7 +268,7 @@ export function ServiceDetailsPage() {
   return (
     <section className="space-y-8">
       <Link to="/catalog" className="text-sm font-medium text-accent hover:underline">
-        ? Back to catalog
+        Back to catalog
       </Link>
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">

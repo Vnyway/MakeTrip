@@ -5,6 +5,8 @@ import { Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { addTourItem, deleteTourItem, getTourDetails, updateTour, updateTourItem } from '../../features/tours/tours.api';
 import { getErrorMessage } from '../../lib/errors';
+import { ErrorState, LoadingState } from '../../components/ui/AsyncState';
+import { MotionFade } from '../../components/ui/MotionFade';
 
 function groupByDay(items) {
   const grouped = items.reduce((acc, item) => {
@@ -90,15 +92,11 @@ export function TourDetailsPage() {
   );
 
   if (detailsQuery.isLoading) {
-    return <div className="rounded-2xl border border-mint-200 bg-white p-6 text-sm text-accent shadow-card">Loading tour...</div>;
+    return <LoadingState message="Loading tour..." />;
   }
 
   if (detailsQuery.error) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-white p-6 text-sm text-red-600 shadow-card">
-        {getErrorMessage(detailsQuery.error, 'Failed to load tour.')}
-      </div>
-    );
+    return <ErrorState message={getErrorMessage(detailsQuery.error, 'Failed to load tour.')} />;
   }
 
   const tour = detailsQuery.data?.tour;
@@ -239,16 +237,17 @@ export function TourDetailsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {dayNumbers.map((day) => {
+          {dayNumbers.map((day, idx) => {
             const items = groupedItems[day] || [];
             const dayTotal = items.reduce((acc, item) => acc + Number(item.service?.price_usd || 0) * Number(item.quantity || 1), 0);
 
             return (
-              <article key={day} className="rounded-2xl border border-mint-200 bg-white p-4 shadow-card">
-                <h2 className="text-xl font-semibold text-brand">Day {day}</h2>
-                <div className="mt-3 space-y-3">
-                  {items.map((item) => (
-                    <div key={item.id} className="rounded-xl border border-mint-200 bg-surface p-3">
+              <MotionFade key={day} delay={Math.min(idx * 0.03, 0.18)}>
+                <article className="rounded-2xl border border-mint-200 bg-white p-4 shadow-card">
+                  <h2 className="text-xl font-semibold text-brand">Day {day}</h2>
+                  <div className="mt-3 space-y-3">
+                    {items.map((item) => (
+                      <div key={item.id} className="rounded-xl border border-mint-200 bg-surface p-3">
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
                           <h3 className="text-lg font-semibold text-brand">{item.service?.title}</h3>
@@ -319,13 +318,14 @@ export function TourDetailsPage() {
                         className="mt-2 min-h-16 w-full rounded-lg border border-mint-200 bg-white px-3 py-2 text-sm"
                         placeholder="Add notes"
                       />
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 rounded-lg bg-mint-100 px-3 py-2 text-right text-lg font-semibold text-brand">
-                  Day {day} total: ${dayTotal.toFixed(0)}
-                </div>
-              </article>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 rounded-lg bg-mint-100 px-3 py-2 text-right text-lg font-semibold text-brand">
+                    Day {day} total: ${dayTotal.toFixed(0)}
+                  </div>
+                </article>
+              </MotionFade>
             );
           })}
         </div>

@@ -2,6 +2,9 @@ import { CalendarDays, Users, MapPin, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { listMyBookings } from '../../features/bookings/bookings.api';
+import { EmptyState, ErrorState } from '../../components/ui/AsyncState';
+import { getErrorMessage } from '../../lib/errors';
+import { MotionFade } from '../../components/ui/MotionFade';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -146,18 +149,24 @@ export function BookingsPage() {
             <BookingSkeleton key={idx} />
           ))}
         </div>
+      ) : query.error ? (
+        <ErrorState message={getErrorMessage(query.error, 'Failed to load bookings.')} />
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-mint-200 bg-white p-8 text-center shadow-card">
-          <h2 className="text-xl font-semibold text-brand">No bookings yet</h2>
-          <p className="mt-2 text-sm text-accent">Open any service and click "Book now" to create your first reservation.</p>
-          <Link to="/catalog" className="btn-primary mt-4 inline-flex">
-            Browse services
-          </Link>
-        </div>
+        <EmptyState
+          title="No bookings yet"
+          description='Open any service and click "Book now" to create your first reservation.'
+          action={
+            <Link to="/catalog" className="btn-primary inline-flex">
+              Browse services
+            </Link>
+          }
+        />
       ) : (
         <div className="space-y-3">
-          {items.map((booking) => (
-            <BookingCard key={booking.id} booking={booking} />
+          {items.map((booking, idx) => (
+            <MotionFade key={booking.id} delay={Math.min(idx * 0.03, 0.18)}>
+              <BookingCard booking={booking} />
+            </MotionFade>
           ))}
         </div>
       )}

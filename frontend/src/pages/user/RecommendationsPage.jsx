@@ -7,6 +7,8 @@ import { RecommendationCard } from '../../components/recommendations/Recommendat
 import { getRecommendations } from '../../features/recommendations/recommendations.api';
 import { useCatalogQueryState } from '../../features/catalog/useCatalogQueryState';
 import { getErrorMessage } from '../../lib/errors';
+import { EmptyState, ErrorState, LoadingState } from '../../components/ui/AsyncState';
+import { MotionFade } from '../../components/ui/MotionFade';
 
 function defaultFilterState(query) {
   return {
@@ -119,18 +121,20 @@ export function RecommendationsPage() {
       />
 
       {queryResult.isLoading ? (
-        <div className="rounded-xl border border-mint-200 bg-white p-8 text-sm text-accent shadow-card">Loading recommendations...</div>
+        <LoadingState message="Loading recommendations..." />
+      ) : queryResult.error ? (
+        <ErrorState message={getErrorMessage(queryResult.error, 'Failed to load recommendations.')} />
       ) : !items.length ? (
-        <div className="rounded-xl border border-mint-200 bg-white p-8 text-center shadow-card">
-          <h2 className="text-xl font-semibold text-brand">No personalized recommendations yet</h2>
-          <p className="mt-2 text-sm text-accent">
-            Try changing filters or interact with more services in the catalog to improve your recommendations.
-          </p>
-        </div>
+        <EmptyState
+          title="No personalized recommendations yet"
+          description="Try changing filters or interact with more services in the catalog to improve your recommendations."
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((item) => (
-            <RecommendationCard key={item.service_id} recommendation={item} />
+          {items.map((item, idx) => (
+            <MotionFade key={item.service_id} delay={Math.min(idx * 0.03, 0.18)}>
+              <RecommendationCard recommendation={item} />
+            </MotionFade>
           ))}
         </div>
       )}

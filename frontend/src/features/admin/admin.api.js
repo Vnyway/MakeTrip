@@ -55,3 +55,13 @@ export async function registerServiceMedia(serviceId, payload) {
   return data.media;
 }
 
+export async function listServiceMedia(serviceId) {
+  const { data } = await api.get(`/api/services/${serviceId}/media`);
+  return data.items || [];
+}
+
+export async function getServiceMediaReadUrl(serviceId, mediaId) {
+  const { data } = await api.get(`/api/services/${serviceId}/media/${mediaId}/read`);
+  return data.download_url;
+}
+
