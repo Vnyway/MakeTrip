@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
 import { getBookingById, updateBookingStatus } from '../../features/bookings/bookings.api';
 import { useGeoDictionaries } from '../../features/geo/useGeoDictionaries';
+import { CatalogCoverImage } from '../../components/catalog/ServiceCard';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -102,7 +103,9 @@ export function BookingDetailsPage() {
               <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles(booking.status)}`}>{booking.status}</span>
             </div>
 
-            <div className="h-72 bg-gradient-to-br from-accent/70 via-brand/80 to-brand" />
+            <div className="relative h-56 overflow-hidden sm:h-64 md:h-72">
+              <CatalogCoverImage url={service?.cover_image_url} heightClass="h-full w-full min-h-[14rem]" />
+            </div>
           </article>
 
           <article className="rounded-2xl border border-mint-200 bg-white p-5 shadow-card">

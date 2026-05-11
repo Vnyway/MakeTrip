@@ -1,12 +1,154 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { Trash2 } from 'lucide-react';
+import { Trash2, MapPin, ChevronRight, ListOrdered } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { addTourItem, deleteTourItem, getTourDetails, updateTour, updateTourItem } from '../../features/tours/tours.api';
 import { getErrorMessage } from '../../lib/errors';
 import { ErrorState, LoadingState } from '../../components/ui/AsyncState';
 import { MotionFade } from '../../components/ui/MotionFade';
+import { CatalogCoverImage } from '../../components/catalog/ServiceCard';
+import { useGeoDictionaries } from '../../features/geo/useGeoDictionaries';
+
+function kindLabel(kind) {
+  if (kind === 'hotel') return 'Hotel';
+  if (kind === 'restaurant') return 'Restaurant';
+  if (kind === 'activity') return 'Activity';
+  if (kind === 'flight') return 'Flight';
+  return 'Service';
+}
+
+function TourItineraryItemCard({ item, updateItemMutation, deleteItemMutation, geo }) {
+  const service = item.service;
+  const lineTotal = (Number(service?.price_usd || 0) * Number(item.quantity || 1)).toFixed(0);
+
+  return (
+    <article className="overflow-hidden rounded-2xl border border-mint-200 bg-white shadow-card">
+      <div className="grid gap-0 md:grid-cols-[120px_1fr_168px]">
+        <div className="relative h-32 overflow-hidden border-b border-mint-200 md:h-auto md:min-h-[7.5rem] md:border-b-0 md:border-r md:border-mint-200">
+          <CatalogCoverImage url={service?.cover_image_url} heightClass="h-full min-h-[8rem] w-full md:min-h-full" />
+        </div>
+
+        <div className="space-y-3 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <span className="rounded-full bg-mint-100 px-2 py-0.5 text-[11px] font-semibold text-brand">
+              {kindLabel(service?.kind)}
+            </span>
+            <button
+              type="button"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-red-200 text-red-600 hover:bg-red-50 md:hidden"
+              onClick={() => deleteItemMutation.mutate(item.id)}
+              aria-label="Remove this stop from the tour"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold leading-snug text-brand">{service?.title}</h3>
+            <p className="mt-1 inline-flex items-center gap-1 text-xs text-accent">
+              <MapPin size={12} />
+              {geo.getCountryName(service?.country_id)}, {geo.getCityName(service?.city_id)}
+            </p>
+            {service?.description ? (
+              <p className="mt-1 line-clamp-2 text-xs text-accent">{service.description}</p>
+            ) : null}
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 border-t border-mint-100 pt-3 text-xs">
+            <label className="grid gap-1">
+              <span className="font-medium text-brand">Day</span>
+              <input
+                type="number"
+                min={1}
+                value={item.day_number}
+                onChange={(event) =>
+                  updateItemMutation.mutate({
+                    itemId: item.id,
+                    body: { day_number: Number(event.target.value) },
+                  })
+                }
+                className="w-full rounded-md border border-mint-200 bg-surface px-2 py-1.5 text-sm"
+              />
+            </label>
+            <label className="grid gap-1">
+              <span className="inline-flex items-center gap-0.5 font-medium text-brand" title="Order within this day">
+                <ListOrdered size={11} />
+                Order
+              </span>
+              <input
+                type="number"
+                min={0}
+                value={item.position}
+                onChange={(event) =>
+                  updateItemMutation.mutate({
+                    itemId: item.id,
+                    body: { position: Number(event.target.value) },
+                  })
+                }
+                className="w-full rounded-md border border-mint-200 bg-surface px-2 py-1.5 text-sm"
+              />
+            </label>
+            <label className="grid gap-1">
+              <span className="font-medium text-brand">Qty</span>
+              <input
+                type="number"
+                min={1}
+                value={item.quantity}
+                onChange={(event) =>
+                  updateItemMutation.mutate({
+                    itemId: item.id,
+                    body: { quantity: Number(event.target.value) },
+                  })
+                }
+                className="w-full rounded-md border border-mint-200 bg-surface px-2 py-1.5 text-sm"
+              />
+            </label>
+          </div>
+
+          <label className="grid gap-1 text-xs">
+            <span className="font-medium text-brand">Note (optional)</span>
+            <textarea
+              value={item.note || ''}
+              onChange={(event) =>
+                updateItemMutation.mutate({
+                  itemId: item.id,
+                  body: { note: event.target.value || null },
+                })
+              }
+              rows={2}
+              className="w-full resize-y rounded-md border border-mint-200 bg-surface px-2 py-1.5 text-sm"
+              placeholder="Private reminder"
+            />
+          </label>
+        </div>
+
+        <div className="flex flex-col justify-between gap-3 border-t border-mint-200 p-4 md:border-l md:border-t-0">
+          <div className="text-right">
+            <p className="text-xs text-accent">Line total</p>
+            <p className="text-2xl font-semibold text-brand">${lineTotal}</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Link
+              to={`/services/${service?.id}`}
+              className="btn-soft flex items-center justify-center gap-1 px-2 py-2 text-xs"
+            >
+              View service <ChevronRight size={14} />
+            </Link>
+            <button
+              type="button"
+              className="btn-soft hidden items-center justify-center gap-1 border-red-200 text-red-600 hover:bg-red-50 md:inline-flex"
+              onClick={() => deleteItemMutation.mutate(item.id)}
+            >
+              <Trash2 size={14} />
+              Remove
+            </button>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
 
 function groupByDay(items) {
   const grouped = items.reduce((acc, item) => {
@@ -25,6 +167,7 @@ function groupByDay(items) {
 
 export function TourDetailsPage() {
   const { id } = useParams();
+  const geo = useGeoDictionaries();
   const queryClient = useQueryClient();
   const [manualForm, setManualForm] = useState({
     service_id: '',
@@ -269,103 +412,26 @@ export function TourDetailsPage() {
             return (
               <MotionFade key={day} delay={Math.min(idx * 0.03, 0.18)}>
                 <article className="rounded-2xl border border-mint-200 bg-white p-4 shadow-card">
-                  <h2 className="text-xl font-semibold text-brand">Day {day}</h2>
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 className="text-xl font-semibold text-brand">Day {day}</h2>
+                    <details className="text-xs text-accent">
+                      <summary className="cursor-pointer font-medium text-brand">Ordering tips</summary>
+                      <p className="mt-1 max-w-xl leading-relaxed">
+                        Changing <strong>Day</strong> only moves this stop to the <em>end</em> of that day&apos;s list so
+                        it won&apos;t collide with an existing slot. <strong>Order</strong> is sort order within the
+                        day (lower first). <strong>Qty</strong> multiplies the service list price for the line total.
+                      </p>
+                    </details>
+                  </div>
                   <div className="mt-3 space-y-3">
                     {items.map((item) => (
-                      <div key={item.id} className="rounded-xl border border-mint-200 bg-surface p-3">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <h3 className="text-lg font-semibold text-brand">{item.service?.title}</h3>
-                          <p className="text-xs text-accent">{item.service?.description || 'No description'}</p>
-                        </div>
-                        <button
-                          type="button"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 text-red-600 hover:bg-red-50"
-                          onClick={() => deleteItemMutation.mutate(item.id)}
-                          aria-label="Remove this stop from the tour"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-
-                      <p className="mt-3 text-xs leading-relaxed text-accent">
-                        <span className="font-medium text-brand">Tour day</span> — which day this stop belongs to. If
-                        you change only this field, the server moves the stop to the <em>end</em> of that day&apos;s list
-                        (next free order) so it never clashes with an existing slot.{' '}
-                        <span className="font-medium text-brand">Order in day</span> — sort order inside that day; lower
-                        numbers appear first. <span className="font-medium text-brand">Quantity</span> — how many units;
-                        line total = service price × quantity.
-                      </p>
-
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <label className="grid gap-1">
-                          <span className="text-xs font-medium text-brand">Tour day</span>
-                          <input
-                            type="number"
-                            min={1}
-                            value={item.day_number}
-                            onChange={(event) =>
-                              updateItemMutation.mutate({
-                                itemId: item.id,
-                                body: { day_number: Number(event.target.value) },
-                              })
-                            }
-                            className="rounded-lg border border-mint-200 bg-white px-2 py-2 text-sm"
-                          />
-                        </label>
-                        <label className="grid gap-1">
-                          <span className="text-xs font-medium text-brand">Order in day</span>
-                          <input
-                            type="number"
-                            min={0}
-                            value={item.position}
-                            onChange={(event) =>
-                              updateItemMutation.mutate({
-                                itemId: item.id,
-                                body: { position: Number(event.target.value) },
-                              })
-                            }
-                            className="rounded-lg border border-mint-200 bg-white px-2 py-2 text-sm"
-                          />
-                        </label>
-                        <label className="grid gap-1">
-                          <span className="text-xs font-medium text-brand">Quantity</span>
-                          <input
-                            type="number"
-                            min={1}
-                            value={item.quantity}
-                            onChange={(event) =>
-                              updateItemMutation.mutate({
-                                itemId: item.id,
-                                body: { quantity: Number(event.target.value) },
-                              })
-                            }
-                            className="rounded-lg border border-mint-200 bg-white px-2 py-2 text-sm"
-                          />
-                        </label>
-                        <div className="flex flex-col justify-end gap-1 rounded-lg border border-mint-100 bg-white px-3 py-2 sm:border-0 sm:bg-transparent sm:px-0">
-                          <span className="text-xs font-medium text-brand">Line total</span>
-                          <p className="text-lg font-semibold text-brand">
-                            ${(Number(item.service?.price_usd || 0) * Number(item.quantity || 1)).toFixed(0)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <label className="mt-3 grid gap-1">
-                        <span className="text-xs font-medium text-brand">Note (optional)</span>
-                        <textarea
-                          value={item.note || ''}
-                          onChange={(event) =>
-                            updateItemMutation.mutate({
-                              itemId: item.id,
-                              body: { note: event.target.value || null },
-                            })
-                          }
-                          className="min-h-16 w-full rounded-lg border border-mint-200 bg-white px-3 py-2 text-sm"
-                          placeholder="Private reminder — e.g. “book window seat”. Does not change price."
-                        />
-                      </label>
-                      </div>
+                      <TourItineraryItemCard
+                        key={item.id}
+                        item={item}
+                        geo={geo}
+                        updateItemMutation={updateItemMutation}
+                        deleteItemMutation={deleteItemMutation}
+                      />
                     ))}
                   </div>
                   <div className="mt-3 rounded-lg bg-mint-100 px-3 py-2 text-right text-lg font-semibold text-brand">

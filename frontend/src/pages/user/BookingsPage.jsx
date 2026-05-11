@@ -1,4 +1,5 @@
 import { CalendarDays, Users, MapPin, ChevronRight } from 'lucide-react';
+import { CatalogCoverImage } from '../../components/catalog/ServiceCard';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { listMyBookings } from '../../features/bookings/bookings.api';
@@ -69,7 +70,9 @@ function BookingCard({ booking, geo }) {
   return (
     <article className="overflow-hidden rounded-2xl border border-mint-200 bg-white shadow-card">
       <div className="grid gap-0 md:grid-cols-[130px_1fr_170px]">
-        <div className="h-36 bg-gradient-to-br from-accent/70 via-brand/80 to-brand md:h-full" />
+        <div className="relative h-36 overflow-hidden border-b border-mint-200 md:h-auto md:min-h-[9rem] md:border-b-0 md:border-r md:border-mint-200">
+          <CatalogCoverImage url={service?.cover_image_url} heightClass="h-full min-h-[9rem] w-full md:min-h-full" />
+        </div>
 
         <div className="space-y-3 p-4">
           <div className="flex flex-wrap items-center gap-2">

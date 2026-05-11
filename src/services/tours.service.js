@@ -1,5 +1,6 @@
 const { pool } = require('../config/db');
 const { assertServiceExists } = require('./userInteractions.service');
+const { attachCoverImageUrl } = require('./catalog.service');
 
 const SERVICE_KIND_SELECT = `
   CASE
@@ -88,7 +89,14 @@ async function getTourWithItems(userId, tourId) {
        s.city_id,
        s.price_usd,
        s.status::text AS service_status,
-       ${SERVICE_KIND_SELECT}
+       ${SERVICE_KIND_SELECT},
+       (
+         SELECT sm.s3_url
+         FROM service_media sm
+         WHERE sm.service_id = s.id AND sm.media_type = 'image'
+         ORDER BY sm.sort_order ASC, sm.id ASC
+         LIMIT 1
+       ) AS cover_s3_url
      FROM tour_items ti
      JOIN services s ON s.id = ti.service_id
      LEFT JOIN hotels h ON h.service_id = s.id
@@ -100,9 +108,19 @@ async function getTourWithItems(userId, tourId) {
     [tourId],
   );
 
+  const items = await Promise.all(
+    itemsResult.rows.map(async (row) => {
+      const mapped = mapTourItemRow(row);
+      return {
+        ...mapped,
+        service: await attachCoverImageUrl(mapped.service, row.cover_s3_url),
+      };
+    }),
+  );
+
   return {
     tour,
-    items: itemsResult.rows.map(mapTourItemRow),
+    items,
   };
 }
 
@@ -227,7 +245,14 @@ async function getTourItemById(userId, tourId, itemId) {
        s.city_id,
        s.price_usd,
        s.status::text AS service_status,
-       ${SERVICE_KIND_SELECT}
+       ${SERVICE_KIND_SELECT},
+       (
+         SELECT sm.s3_url
+         FROM service_media sm
+         WHERE sm.service_id = s.id AND sm.media_type = 'image'
+         ORDER BY sm.sort_order ASC, sm.id ASC
+         LIMIT 1
+       ) AS cover_s3_url
      FROM tour_items ti
      JOIN services s ON s.id = ti.service_id
      LEFT JOIN hotels h ON h.service_id = s.id
@@ -241,7 +266,11 @@ async function getTourItemById(userId, tourId, itemId) {
   const row = result.rows[0];
   if (!row) return null;
 
-  return mapTourItemRow(row);
+  const mapped = mapTourItemRow(row);
+  return {
+    ...mapped,
+    service: await attachCoverImageUrl(mapped.service, row.cover_s3_url),
+  };
 }
 
 async function updateTourItem(userId, tourId, itemId, body) {

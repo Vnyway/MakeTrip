@@ -656,6 +656,7 @@ async function fetchKindOnly(serviceId) {
 
 module.exports = {
   mapServiceRow,
+  attachCoverImageUrl,
   listServices,
   getServiceById,
   createService,

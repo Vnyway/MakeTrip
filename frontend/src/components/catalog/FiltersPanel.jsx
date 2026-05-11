@@ -52,7 +52,12 @@ export function FiltersPanel({
         <h2 className="text-sm font-semibold">Filters & Sorting</h2>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <p className="text-xs leading-relaxed text-accent">
+        <span className="font-medium text-brand">Sort tip:</span> &quot;Recommended&quot; ranks with CF; price or date
+        sorts ignore CF and order the list strictly.
+      </p>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:items-start">
         {showKind ? (
           <label className="space-y-1 text-sm">
             <span className="font-medium text-brand">Category</span>
@@ -72,7 +77,6 @@ export function FiltersPanel({
 
         <label className="space-y-1 text-sm">
           <span className="font-medium text-brand">Sort</span>
-          <p className="text-xs text-accent">Recommended uses CF ranking; choosing price/date disables CF.</p>
           <select
             value={values.sort}
             onChange={(event) => setValue('sort', event.target.value)}
@@ -134,8 +138,11 @@ export function FiltersPanel({
             ))}
           </select>
         </label>
-        <Input label="Min price" value={values.min_price_usd} onChange={(v) => setValue('min_price_usd', v)} type="number" />
-        <Input label="Max price" value={values.max_price_usd} onChange={(v) => setValue('max_price_usd', v)} type="number" />
+
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Min price" value={values.min_price_usd} onChange={(v) => setValue('min_price_usd', v)} type="number" />
+          <Input label="Max price" value={values.max_price_usd} onChange={(v) => setValue('max_price_usd', v)} type="number" />
+        </div>
 
         {showCuisine ? <Input label="Cuisine" value={values.cuisine} onChange={(v) => setValue('cuisine', v)} /> : null}
         {showActivityKind ? (

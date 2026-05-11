@@ -1,5 +1,6 @@
 const { pool } = require('../config/db');
 const { assertServiceExists, logInteraction } = require('./userInteractions.service');
+const { attachCoverImageUrl } = require('./catalog.service');
 
 const SERVICE_KIND_SELECT = `
   CASE
@@ -46,7 +47,14 @@ async function listMine(userId) {
        s.city_id,
        s.price_usd,
        s.status::text AS service_status,
-       ${SERVICE_KIND_SELECT}
+       ${SERVICE_KIND_SELECT},
+       (
+         SELECT sm.s3_url
+         FROM service_media sm
+         WHERE sm.service_id = s.id AND sm.media_type = 'image'
+         ORDER BY sm.sort_order ASC, sm.id ASC
+         LIMIT 1
+       ) AS cover_s3_url
      FROM bookings b
      JOIN services s ON s.id = b.service_id
      LEFT JOIN hotels h ON h.service_id = s.id
@@ -58,28 +66,33 @@ async function listMine(userId) {
     [userId],
   );
 
-  return result.rows.map((row) => ({
-    id: row.id,
-    user_id: row.user_id,
-    service_id: row.service_id,
-    start_date: row.start_date,
-    end_date: row.end_date,
-    persons_count: Number(row.persons_count),
-    total_price_usd: Number(row.total_price_usd),
-    status: row.status,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-    service: {
-      id: row.service_id,
-      title: row.title,
-      description: row.description,
-      country_id: row.country_id,
-      city_id: row.city_id,
-      price_usd: Number(row.price_usd),
-      status: row.service_status,
-      kind: row.kind,
-    },
-  }));
+  return Promise.all(
+    result.rows.map(async (row) => {
+      const service = {
+        id: row.service_id,
+        title: row.title,
+        description: row.description,
+        country_id: row.country_id,
+        city_id: row.city_id,
+        price_usd: Number(row.price_usd),
+        status: row.service_status,
+        kind: row.kind,
+      };
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        service_id: row.service_id,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        persons_count: Number(row.persons_count),
+        total_price_usd: Number(row.total_price_usd),
+        status: row.status,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        service: await attachCoverImageUrl(service, row.cover_s3_url),
+      };
+    }),
+  );
 }
 
 async function getById(userId, bookingId) {
@@ -101,7 +114,14 @@ async function getById(userId, bookingId) {
        s.city_id,
        s.price_usd,
        s.status::text AS service_status,
-       ${SERVICE_KIND_SELECT}
+       ${SERVICE_KIND_SELECT},
+       (
+         SELECT sm.s3_url
+         FROM service_media sm
+         WHERE sm.service_id = s.id AND sm.media_type = 'image'
+         ORDER BY sm.sort_order ASC, sm.id ASC
+         LIMIT 1
+       ) AS cover_s3_url
      FROM bookings b
      JOIN services s ON s.id = b.service_id
      LEFT JOIN hotels h ON h.service_id = s.id
@@ -115,6 +135,17 @@ async function getById(userId, bookingId) {
   const row = result.rows[0];
   if (!row) return null;
 
+  const service = {
+    id: row.service_id,
+    title: row.title,
+    description: row.description,
+    country_id: row.country_id,
+    city_id: row.city_id,
+    price_usd: Number(row.price_usd),
+    status: row.service_status,
+    kind: row.kind,
+  };
+
   return {
     id: row.id,
     user_id: row.user_id,
@@ -126,16 +157,7 @@ async function getById(userId, bookingId) {
     status: row.status,
     created_at: row.created_at,
     updated_at: row.updated_at,
-    service: {
-      id: row.service_id,
-      title: row.title,
-      description: row.description,
-      country_id: row.country_id,
-      city_id: row.city_id,
-      price_usd: Number(row.price_usd),
-      status: row.service_status,
-      kind: row.kind,
-    },
+    service: await attachCoverImageUrl(service, row.cover_s3_url),
   };
 }
 
