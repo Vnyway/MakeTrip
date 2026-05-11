@@ -6,7 +6,6 @@ import { FiltersPanel } from '../../components/catalog/FiltersPanel';
 import { ServiceCard } from '../../components/catalog/ServiceCard';
 import { ViewToggle } from '../../components/catalog/ViewToggle';
 import { Pagination } from '../../components/catalog/Pagination';
-import { RecommendationBlock } from '../../components/catalog/RecommendationBlock';
 import { AddToTourModal } from '../../components/tours/AddToTourModal';
 import { getServices } from './catalog.api';
 import { useCatalogQueryState } from './useCatalogQueryState';
@@ -22,7 +21,7 @@ function mapApiError(error) {
 function defaultFilterState(query, fixedKind) {
   return {
     kind: fixedKind || query.kind || '',
-    sort: query.sort || 'created_at desc',
+    sort: query.sort || 'recommended',
     status: query.status || '',
     country_id: query.country_id ?? '',
     city_id: query.city_id ?? '',
@@ -55,7 +54,6 @@ export function CatalogPageTemplate({
   title,
   subtitle,
   fixedKind,
-  recommendationTitle,
   showKindFilter = true,
   showCuisine = false,
   showActivityKind = false,
@@ -106,7 +104,7 @@ export function CatalogPageTemplate({
   function handleResetFilters() {
     const reset = defaultFilterState(
       {
-        sort: 'created_at desc',
+        sort: 'recommended',
       },
       fixedKind,
     );
@@ -184,8 +182,6 @@ export function CatalogPageTemplate({
         total={pagination.total || 0}
         onPageChange={setPage}
       />
-
-      <RecommendationBlock title={recommendationTitle} filters={apiParams} limit={4} />
 
       <AddToTourModal
         service={addToTourService}

@@ -6,7 +6,6 @@ export function RestaurantsPage() {
       title="Restaurants"
       subtitle="Explore dining options by location and cuisine."
       fixedKind="restaurant"
-      recommendationTitle="Recommended Restaurants"
       showKindFilter={false}
       showCuisine
     />

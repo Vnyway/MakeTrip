@@ -1,4 +1,5 @@
 export const SORT_OPTIONS = [
+  { value: 'recommended', label: 'Recommended (CF)' },
   { value: 'created_at desc', label: 'Newest first' },
   { value: 'created_at asc', label: 'Oldest first' },
   { value: 'price_usd asc', label: 'Price: low to high' },

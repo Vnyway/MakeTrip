@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
 import { AuthLayout } from '../layouts/AuthLayout';
-import { GuestOnlyRoute, UserRoute, AdminRoute } from './guards';
+import { GuestOnlyRoute, UserRoute, AdminRoute, CatalogRoute } from './guards';
 import { HomePage } from '../pages/HomePage';
 import { LoginPage } from '../pages/auth/LoginPage';
 import { RegisterPage } from '../pages/auth/RegisterPage';
@@ -15,7 +15,6 @@ import { FavoritesPage } from '../pages/user/FavoritesPage';
 import { BookingsPage } from '../pages/user/BookingsPage';
 import { BookingDetailsPage } from '../pages/user/BookingDetailsPage';
 import { ReviewsPage } from '../pages/user/ReviewsPage';
-import { RecommendationsPage } from '../pages/user/RecommendationsPage';
 import { ToursPage } from '../pages/user/ToursPage';
 import { TourDetailsPage } from '../pages/user/TourDetailsPage';
 import { TourCheckoutPage } from '../pages/user/TourCheckoutPage';
@@ -55,41 +54,41 @@ export function AppRouter() {
         <Route
           path="/catalog"
           element={
-            <UserRoute>
+            <CatalogRoute>
               <CatalogPage />
-            </UserRoute>
+            </CatalogRoute>
           }
         />
         <Route
           path="/hotels"
           element={
-            <UserRoute>
+            <CatalogRoute>
               <HotelsPage />
-            </UserRoute>
+            </CatalogRoute>
           }
         />
         <Route
           path="/restaurants"
           element={
-            <UserRoute>
+            <CatalogRoute>
               <RestaurantsPage />
-            </UserRoute>
+            </CatalogRoute>
           }
         />
         <Route
           path="/activities"
           element={
-            <UserRoute>
+            <CatalogRoute>
               <ActivitiesPage />
-            </UserRoute>
+            </CatalogRoute>
           }
         />
         <Route
           path="/flights"
           element={
-            <UserRoute>
+            <CatalogRoute>
               <FlightsPage />
-            </UserRoute>
+            </CatalogRoute>
           }
         />
         <Route
@@ -129,14 +128,6 @@ export function AppRouter() {
           element={
             <UserRoute>
               <ReviewsPage />
-            </UserRoute>
-          }
-        />
-        <Route
-          path="/recommendations"
-          element={
-            <UserRoute>
-              <RecommendationsPage />
             </UserRoute>
           }
         />

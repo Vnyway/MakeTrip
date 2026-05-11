@@ -15,7 +15,7 @@ export function useCatalogQueryState({ fixedKind }) {
     const q = {
       page: asNumberOrUndefined(searchParams.get('page')) || 1,
       limit: asNumberOrUndefined(searchParams.get('limit')) || DEFAULT_LIMIT,
-      sort: searchParams.get('sort') || 'created_at desc',
+      sort: searchParams.get('sort') || 'recommended',
       q: searchParams.get('q') || '',
       kind: fixedKind || searchParams.get('kind') || '',
       status: searchParams.get('status') || '',

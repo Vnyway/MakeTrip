@@ -93,6 +93,18 @@ const SORT_EXPR = {
   'created_at desc': 's.created_at DESC NULLS LAST',
 };
 
+const INTERACTION_WEIGHT_SQL = `
+  CASE ui.interaction_type
+    WHEN 'view' THEN 0.08
+    WHEN 'click' THEN 0.15
+    WHEN 'favorite_add' THEN 1.0
+    WHEN 'favorite_remove' THEN -0.35
+    WHEN 'booking' THEN 2.5
+    WHEN 'review' THEN LEAST(2.5, GREATEST(0.15, COALESCE(ui.weight, 3)::float8 / 5.0 * 2.0))
+    ELSE 0
+  END
+`;
+
 function validateFlightEndpoints(origin_city_id, destination_city_id) {
   if (
     origin_city_id != null &&
@@ -105,7 +117,7 @@ function validateFlightEndpoints(origin_city_id, destination_city_id) {
   }
 }
 
-async function listServices(filters) {
+async function listServices(filters, userId) {
   const {
     kind,
     country_id,
@@ -221,7 +233,8 @@ async function listServices(filters) {
     WHERE ${whereSql}
   `;
 
-  const listQuery = `
+  const offset = (page - 1) * limit;
+  const baseSelect = `
     SELECT
       s.id,
       s.title,
@@ -260,16 +273,49 @@ async function listServices(filters) {
     LEFT JOIN restaurants r ON r.service_id = s.id
     LEFT JOIN flights f ON f.service_id = s.id
     LEFT JOIN activities a ON a.service_id = s.id
-    WHERE ${whereSql}
-    ORDER BY ${SORT_EXPR[sort]}
-    OFFSET $${i} LIMIT $${i + 1}
   `;
 
-  const offset = (page - 1) * limit;
+  let listQuery = '';
+  let listParams = [];
+
+  if (sort === 'recommended') {
+    if (userId) {
+      listQuery = `
+        ${baseSelect}
+        LEFT JOIN LATERAL (
+          SELECT SUM(us.score * (${INTERACTION_WEIGHT_SQL}))::float8 AS cf_raw
+          FROM user_interactions ui
+          JOIN user_similarity us ON us.similar_user_id = ui.user_id
+          WHERE us.user_id = $${i}
+            AND ui.service_id = s.id
+        ) cf ON TRUE
+        WHERE ${whereSql}
+        ORDER BY COALESCE(cf.cf_raw, 0) DESC, s.created_at DESC NULLS LAST
+        OFFSET $${i + 1} LIMIT $${i + 2}
+      `;
+      listParams = [...params, userId, offset, limit];
+    } else {
+      listQuery = `
+        ${baseSelect}
+        WHERE ${whereSql}
+        ORDER BY s.created_at DESC NULLS LAST
+        OFFSET $${i} LIMIT $${i + 1}
+      `;
+      listParams = [...params, offset, limit];
+    }
+  } else {
+    listQuery = `
+      ${baseSelect}
+      WHERE ${whereSql}
+      ORDER BY ${SORT_EXPR[sort] || SORT_EXPR['created_at desc']}
+      OFFSET $${i} LIMIT $${i + 1}
+    `;
+    listParams = [...params, offset, limit];
+  }
 
   const [countResult, listResult] = await Promise.all([
     pool.query(countQuery, params),
-    pool.query(listQuery, [...params, offset, limit]),
+    pool.query(listQuery, listParams),
   ]);
 
   const total = Number(countResult.rows[0]?.cnt || 0);

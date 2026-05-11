@@ -12,7 +12,6 @@ const userItems = [
   { to: '/restaurants', label: 'Restaurants' },
   { to: '/activities', label: 'Activities' },
   { to: '/flights', label: 'Flights' },
-  { to: '/recommendations', label: 'Recommendations' },
   { to: '/tours', label: 'Tours' },
 ];
 

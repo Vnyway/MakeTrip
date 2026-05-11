@@ -5,7 +5,6 @@ export function CatalogPage() {
     <CatalogPageTemplate
       title="Browse All Services"
       subtitle="Search travel offers across hotels, restaurants, activities, and flights."
-      recommendationTitle="Recommended for You"
       showKindFilter
     />
   );

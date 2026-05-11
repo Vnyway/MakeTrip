@@ -17,9 +17,10 @@ const router = express.Router();
 
 router.get(
   '/',
+  authenticate(),
   catchAsync(async (req, res) => {
     const query = listQuerySchema.parse(req.query);
-    const result = await catalogService.listServices(query);
+    const result = await catalogService.listServices(query, req.user.id);
     res.json(result);
   }),
 );

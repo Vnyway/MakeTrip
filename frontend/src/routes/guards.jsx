@@ -10,7 +10,7 @@ export function GuestOnlyRoute({ children }) {
   }
 
   if (auth.isAuthenticated) {
-    return <Navigate to="/catalog" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return children;
@@ -31,6 +31,20 @@ export function UserRoute({ children }) {
   return children;
 }
 
+export function CatalogRoute({ children }) {
+  const auth = useAuth();
+
+  if (auth.isBootstrapping) {
+    return <RouteLoader />;
+  }
+
+  if (!auth.isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
+
 export function AdminRoute({ children }) {
   const auth = useAuth();
   const location = useLocation();
@@ -44,7 +58,7 @@ export function AdminRoute({ children }) {
   }
 
   if (!auth.isAdmin) {
-    return <Navigate to="/catalog" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return children;

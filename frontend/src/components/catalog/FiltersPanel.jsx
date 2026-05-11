@@ -72,6 +72,7 @@ export function FiltersPanel({
 
         <label className="space-y-1 text-sm">
           <span className="font-medium text-brand">Sort</span>
+          <p className="text-xs text-accent">Recommended uses CF ranking; choosing price/date disables CF.</p>
           <select
             value={values.sort}
             onChange={(event) => setValue('sort', event.target.value)}

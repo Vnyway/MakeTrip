@@ -114,9 +114,9 @@ const listQuerySchema = z
     page: z.coerce.number().int().positive().optional().default(1),
     limit: z.coerce.number().int().positive().max(100).optional().default(20),
     sort: z
-      .enum(['price_usd asc', 'price_usd desc', 'created_at asc', 'created_at desc'])
+      .enum(['recommended', 'price_usd asc', 'price_usd desc', 'created_at asc', 'created_at desc'])
       .optional()
-      .default('created_at desc'),
+      .default('recommended'),
   })
   .superRefine((data, ctx) => {
     if (

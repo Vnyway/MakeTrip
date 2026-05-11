@@ -1,24 +1,27 @@
-import { PageShell } from '../components/ui/PageShell';
-import { RecommendationBlock } from '../components/catalog/RecommendationBlock';
+import { CatalogPageTemplate } from '../features/catalog/CatalogPageTemplate';
 import { useAuth } from '../app/auth';
 
 export function HomePage() {
   const auth = useAuth();
 
-  return (
-    <section className="space-y-6">
-      <PageShell
-        title="Home"
-        description="Discover services, build your tours, and get personalized recommendations."
-      />
+  if (!auth.isAuthenticated) {
+    return (
+      <section className="space-y-6">
+        <header className="rounded-xl border border-mint-200 bg-white p-5 shadow-card">
+          <h1 className="text-3xl font-bold tracking-tight text-brand">Home</h1>
+          <p className="mt-2 text-sm text-accent">
+            Sign in to browse the catalog, search offers, and build your trip.
+          </p>
+        </header>
+      </section>
+    );
+  }
 
-      {auth.isAuthenticated ? (
-        <RecommendationBlock title="Recommended for You" limit={6} />
-      ) : (
-        <div className="rounded-xl border border-mint-200 bg-white p-4 text-sm text-accent shadow-card">
-          Sign in to get personalized recommendations based on your activity and preferences.
-        </div>
-      )}
-    </section>
+  return (
+    <CatalogPageTemplate
+      title="Browse All Services"
+      subtitle="Search travel offers across hotels, restaurants, activities, and flights."
+      showKindFilter
+    />
   );
 }

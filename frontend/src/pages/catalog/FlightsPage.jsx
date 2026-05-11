@@ -6,7 +6,6 @@ export function FlightsPage() {
       title="Flights"
       subtitle="Browse route options and compare prices."
       fixedKind="flight"
-      recommendationTitle="Recommended Flights"
       showKindFilter={false}
       showFlightFields
     />
