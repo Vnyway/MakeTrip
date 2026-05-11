@@ -172,10 +172,13 @@ export function TourDetailsPage() {
       </article>
 
       <article className="rounded-2xl border border-mint-200 bg-white p-5 shadow-card">
-        <h2 className="text-lg font-semibold text-brand">Add Item Manually (CRUD)</h2>
-        <p className="mt-1 text-xs text-accent">If needed, you can add an item directly by service id.</p>
+        <h2 className="text-lg font-semibold text-brand">Add item manually</h2>
+        <p className="mt-1 text-xs text-accent">
+          Optional power-user form: paste a service id (same UUID as in the service URL). Available to you as the tour
+          owner — not admin-only. Prefer adding from the catalog with &quot;Add to Tour&quot; when possible.
+        </p>
         <form
-          className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5"
+          className="mt-4 flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
             addItemMutation.mutate({
@@ -187,46 +190,68 @@ export function TourDetailsPage() {
             });
           }}
         >
-          <input
-            value={manualForm.service_id}
-            onChange={(event) => setManualForm((prev) => ({ ...prev, service_id: event.target.value }))}
-            className="rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm lg:col-span-2"
-            placeholder="service_id (uuid)"
-            required
-          />
-          <input
-            type="number"
-            min={1}
-            value={manualForm.day_number}
-            onChange={(event) => setManualForm((prev) => ({ ...prev, day_number: event.target.value }))}
-            className="rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm"
-            placeholder="day"
-          />
-          <input
-            type="number"
-            min={0}
-            value={manualForm.position}
-            onChange={(event) => setManualForm((prev) => ({ ...prev, position: event.target.value }))}
-            className="rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm"
-            placeholder="position"
-          />
-          <input
-            type="number"
-            min={1}
-            value={manualForm.quantity}
-            onChange={(event) => setManualForm((prev) => ({ ...prev, quantity: event.target.value }))}
-            className="rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm"
-            placeholder="qty"
-          />
-          <textarea
-            value={manualForm.note}
-            onChange={(event) => setManualForm((prev) => ({ ...prev, note: event.target.value }))}
-            className="min-h-20 rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm sm:col-span-2 lg:col-span-4"
-            placeholder="note (optional)"
-          />
-          <button type="submit" className="btn-primary" disabled={addItemMutation.isPending}>
-            {addItemMutation.isPending ? 'Adding...' : 'Add item'}
-          </button>
+          <label className="grid max-w-3xl gap-1">
+            <span className="text-xs font-medium text-brand">Service id</span>
+            <input
+              value={manualForm.service_id}
+              onChange={(event) => setManualForm((prev) => ({ ...prev, service_id: event.target.value }))}
+              className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm"
+              placeholder="e.g. from /services/this-part-of-url"
+              required
+            />
+          </label>
+
+          <div className="grid max-w-3xl gap-3 sm:grid-cols-3">
+            <label className="grid gap-1">
+              <span className="text-xs font-medium text-brand">Tour day</span>
+              <input
+                type="number"
+                min={1}
+                value={manualForm.day_number}
+                onChange={(event) => setManualForm((prev) => ({ ...prev, day_number: event.target.value }))}
+                className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm"
+              />
+              <span className="text-[11px] leading-snug text-accent">Which day block (1 = first day)</span>
+            </label>
+            <label className="grid gap-1">
+              <span className="text-xs font-medium text-brand">Order in day</span>
+              <input
+                type="number"
+                min={0}
+                value={manualForm.position}
+                onChange={(event) => setManualForm((prev) => ({ ...prev, position: event.target.value }))}
+                className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm"
+              />
+              <span className="text-[11px] leading-snug text-accent">0 = first in that day</span>
+            </label>
+            <label className="grid gap-1">
+              <span className="text-xs font-medium text-brand">Quantity</span>
+              <input
+                type="number"
+                min={1}
+                value={manualForm.quantity}
+                onChange={(event) => setManualForm((prev) => ({ ...prev, quantity: event.target.value }))}
+                className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm"
+              />
+              <span className="text-[11px] leading-snug text-accent">Multiplies list price</span>
+            </label>
+          </div>
+
+          <label className="grid gap-1">
+            <span className="text-xs font-medium text-brand">Note (optional)</span>
+            <textarea
+              value={manualForm.note}
+              onChange={(event) => setManualForm((prev) => ({ ...prev, note: event.target.value }))}
+              className="min-h-20 w-full max-w-3xl rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm"
+              placeholder="Your reminder — not shown to guests, does not change price"
+            />
+          </label>
+
+          <div className="flex justify-end border-t border-mint-100 pt-3">
+            <button type="submit" className="btn-primary" disabled={addItemMutation.isPending}>
+              {addItemMutation.isPending ? 'Adding...' : 'Add item'}
+            </button>
+          </div>
         </form>
       </article>
 
@@ -257,67 +282,89 @@ export function TourDetailsPage() {
                           type="button"
                           className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 text-red-600 hover:bg-red-50"
                           onClick={() => deleteItemMutation.mutate(item.id)}
+                          aria-label="Remove this stop from the tour"
                         >
                           <Trash2 size={14} />
                         </button>
                       </div>
 
-                      <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                        <input
-                          type="number"
-                          min={1}
-                          value={item.day_number}
-                          onChange={(event) =>
-                            updateItemMutation.mutate({
-                              itemId: item.id,
-                              body: { day_number: Number(event.target.value) },
-                            })
-                          }
-                          className="rounded-lg border border-mint-200 bg-white px-2 py-2 text-sm"
-                          placeholder="day"
-                        />
-                        <input
-                          type="number"
-                          min={0}
-                          value={item.position}
-                          onChange={(event) =>
-                            updateItemMutation.mutate({
-                              itemId: item.id,
-                              body: { position: Number(event.target.value) },
-                            })
-                          }
-                          className="rounded-lg border border-mint-200 bg-white px-2 py-2 text-sm"
-                          placeholder="position"
-                        />
-                        <input
-                          type="number"
-                          min={1}
-                          value={item.quantity}
-                          onChange={(event) =>
-                            updateItemMutation.mutate({
-                              itemId: item.id,
-                              body: { quantity: Number(event.target.value) },
-                            })
-                          }
-                          className="rounded-lg border border-mint-200 bg-white px-2 py-2 text-sm"
-                          placeholder="qty"
-                        />
-                        <p className="flex items-center justify-end text-lg font-semibold text-brand">
-                          ${(Number(item.service?.price_usd || 0) * Number(item.quantity || 1)).toFixed(0)}
-                        </p>
+                      <p className="mt-3 text-xs leading-relaxed text-accent">
+                        <span className="font-medium text-brand">Tour day</span> — which day this stop belongs to. If
+                        you change only this field, the server moves the stop to the <em>end</em> of that day&apos;s list
+                        (next free order) so it never clashes with an existing slot.{' '}
+                        <span className="font-medium text-brand">Order in day</span> — sort order inside that day; lower
+                        numbers appear first. <span className="font-medium text-brand">Quantity</span> — how many units;
+                        line total = service price × quantity.
+                      </p>
+
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <label className="grid gap-1">
+                          <span className="text-xs font-medium text-brand">Tour day</span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={item.day_number}
+                            onChange={(event) =>
+                              updateItemMutation.mutate({
+                                itemId: item.id,
+                                body: { day_number: Number(event.target.value) },
+                              })
+                            }
+                            className="rounded-lg border border-mint-200 bg-white px-2 py-2 text-sm"
+                          />
+                        </label>
+                        <label className="grid gap-1">
+                          <span className="text-xs font-medium text-brand">Order in day</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={item.position}
+                            onChange={(event) =>
+                              updateItemMutation.mutate({
+                                itemId: item.id,
+                                body: { position: Number(event.target.value) },
+                              })
+                            }
+                            className="rounded-lg border border-mint-200 bg-white px-2 py-2 text-sm"
+                          />
+                        </label>
+                        <label className="grid gap-1">
+                          <span className="text-xs font-medium text-brand">Quantity</span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(event) =>
+                              updateItemMutation.mutate({
+                                itemId: item.id,
+                                body: { quantity: Number(event.target.value) },
+                              })
+                            }
+                            className="rounded-lg border border-mint-200 bg-white px-2 py-2 text-sm"
+                          />
+                        </label>
+                        <div className="flex flex-col justify-end gap-1 rounded-lg border border-mint-100 bg-white px-3 py-2 sm:border-0 sm:bg-transparent sm:px-0">
+                          <span className="text-xs font-medium text-brand">Line total</span>
+                          <p className="text-lg font-semibold text-brand">
+                            ${(Number(item.service?.price_usd || 0) * Number(item.quantity || 1)).toFixed(0)}
+                          </p>
+                        </div>
                       </div>
 
-                      <textarea
-                        value={item.note || ''}
-                        onChange={(event) =>
-                          updateItemMutation.mutate({
-                            itemId: item.id,
-                            body: { note: event.target.value || null },
-                          })
-                        }
-                        className="mt-2 min-h-16 w-full rounded-lg border border-mint-200 bg-white px-3 py-2 text-sm"
-                        placeholder="Add notes"
-                      />
+                      <label className="mt-3 grid gap-1">
+                        <span className="text-xs font-medium text-brand">Note (optional)</span>
+                        <textarea
+                          value={item.note || ''}
+                          onChange={(event) =>
+                            updateItemMutation.mutate({
+                              itemId: item.id,
+                              body: { note: event.target.value || null },
+                            })
+                          }
+                          className="min-h-16 w-full rounded-lg border border-mint-200 bg-white px-3 py-2 text-sm"
+                          placeholder="Private reminder — e.g. “book window seat”. Does not change price."
+                        />
+                      </label>
                       </div>
                     ))}
                   </div>

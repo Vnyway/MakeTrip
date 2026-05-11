@@ -9,6 +9,8 @@ import { getErrorMessage } from '../../lib/errors';
 import { useFavorites } from '../../features/favorites/useFavorites';
 import { createBooking } from '../../features/bookings/bookings.api';
 import { AddToTourModal } from '../../components/tours/AddToTourModal';
+import { CatalogCoverImage } from '../../components/catalog/ServiceCard';
+import { useGeoDictionaries } from '../../features/geo/useGeoDictionaries';
 
 const reviewSchema = z.object({
   rating: z.coerce.number().int().min(1).max(5),
@@ -36,12 +38,12 @@ function formatDate(value) {
   return date.toLocaleDateString();
 }
 
-function RelatedServiceCard({ item, favorites }) {
+function RelatedServiceCard({ item, favorites, geo }) {
   const isFavorite = favorites.isFavorite(item.id);
 
   return (
     <article className="relative overflow-hidden rounded-xl border border-mint-200 bg-white shadow-card">
-      <div className="h-36 bg-gradient-to-br from-accent/70 via-brand/80 to-brand" />
+      <CatalogCoverImage url={item.cover_image_url} heightClass="h-36" />
       <button
         type="button"
         onClick={() => favorites.toggleFavorite(item.id)}
@@ -58,7 +60,7 @@ function RelatedServiceCard({ item, favorites }) {
         <h3 className="line-clamp-1 text-lg font-semibold text-brand">{item.title}</h3>
         <p className="line-clamp-1 text-sm text-accent">{item.description || 'No description'}</p>
         <div className="flex items-center gap-1 text-xs text-accent">
-          <MapPin size={12} /> Country #{item.country_id}, city #{item.city_id}
+          <MapPin size={12} /> {geo.getCountryName(item.country_id)}, {geo.getCityName(item.city_id)}
         </div>
         <div className="mt-3 flex items-center justify-between border-t border-mint-200 pt-3">
           <p className="text-lg font-bold text-brand">${Number(item.price_usd || 0).toFixed(0)}</p>
@@ -74,6 +76,7 @@ function RelatedServiceCard({ item, favorites }) {
 export function ServiceDetailsPage() {
   const { id } = useParams();
   const favorites = useFavorites();
+  const geo = useGeoDictionaries();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -341,7 +344,7 @@ export function ServiceDetailsPage() {
           </div>
           <h1 className="text-3xl font-bold text-brand">{service.title}</h1>
           <div className="flex items-center gap-2 text-sm text-accent">
-            <MapPin size={14} /> Country #{service.country_id}, city #{service.city_id}
+            <MapPin size={14} /> {geo.getCountryName(service.country_id)}, {geo.getCityName(service.city_id)}
           </div>
 
           <div className="flex items-center gap-2 text-sm text-accent">
@@ -604,7 +607,7 @@ export function ServiceDetailsPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {(relatedQuery.data || []).map((item) => (
-              <RelatedServiceCard key={item.id} item={item} favorites={favorites} />
+              <RelatedServiceCard key={item.id} item={item} favorites={favorites} geo={geo} />
             ))}
           </div>
         )}

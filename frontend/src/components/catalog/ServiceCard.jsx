@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Heart, MapPin, Star, Clock3, Plane, UtensilsCrossed, Hotel } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getKindLabel } from '../../features/catalog/catalog.constants';
+import { useGeoDictionaries } from '../../features/geo/useGeoDictionaries';
 
 function KindIcon({ kind }) {
   if (kind === 'hotel') return <Hotel size={14} />;
@@ -9,7 +11,7 @@ function KindIcon({ kind }) {
   return <Clock3 size={14} />;
 }
 
-function AttributeBadge({ service }) {
+function AttributeBadge({ service, getCityName }) {
   if (service.kind === 'hotel' && service.hotel?.stars) return `${service.hotel.stars} stars`;
   if (service.kind === 'restaurant' && service.restaurant?.cuisine) return service.restaurant.cuisine;
   if (service.kind === 'activity' && service.activity?.duration_minutes) {
@@ -18,7 +20,7 @@ function AttributeBadge({ service }) {
   if (service.kind === 'flight') {
     const from = service.flight?.origin_city_id ?? '?';
     const to = service.flight?.destination_city_id ?? '?';
-    return `${from} ? ${to}`;
+    return `${getCityName(from)} -> ${getCityName(to)}`;
   }
   return getKindLabel(service.kind);
 }
@@ -45,6 +47,25 @@ function FavoriteButton({ active, onClick, disabled = false }) {
   );
 }
 
+export function CatalogCoverImage({ url, heightClass = 'h-40', roundedClass = '' }) {
+  const [failed, setFailed] = useState(false);
+  if (!url || failed) {
+    return (
+      <div className={`${heightClass} w-full bg-gradient-to-br from-accent/70 via-brand/80 to-brand ${roundedClass}`} />
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt=""
+      className={`${heightClass} w-full object-cover ${roundedClass}`}
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 export function ServiceCard({
   service,
   view = 'grid',
@@ -53,18 +74,29 @@ export function ServiceCard({
   favoriteLoading = false,
   onAddToTour,
 }) {
+  const geo = useGeoDictionaries();
+  const countryName = geo.getCountryName(service.country_id);
+  const cityName = geo.getCityName(service.city_id);
+
   if (view === 'list') {
     return (
       <article className="flex flex-col gap-3 rounded-xl border border-mint-200 bg-white p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
+        <div className="flex min-w-0 flex-1 gap-3 sm:items-center">
+          {service.cover_image_url ? (
+            <div className="hidden h-20 w-28 shrink-0 overflow-hidden rounded-lg border border-mint-200 sm:block">
+              <CatalogCoverImage url={service.cover_image_url} heightClass="h-20" />
+            </div>
+          ) : null}
+          <div className="min-w-0 space-y-1">
           <div className="inline-flex items-center gap-1 rounded-full bg-mint-100 px-2 py-1 text-xs text-brand">
             <KindIcon kind={service.kind} /> {getKindLabel(service.kind).toLowerCase()}
           </div>
           <h3 className="text-lg font-semibold text-brand">{service.title}</h3>
-          <p className="text-sm text-accent">{AttributeBadge({ service })}</p>
+          <p className="text-sm text-accent">{AttributeBadge({ service, getCityName: geo.getCityName })}</p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           {typeof onToggleFavorite === 'function' ? (
             <button
               type="button"
@@ -91,7 +123,7 @@ export function ServiceCard({
 
   return (
     <article className="relative overflow-hidden rounded-xl border border-mint-200 bg-white shadow-card">
-      <div className="h-40 bg-gradient-to-br from-accent/70 via-brand/80 to-brand" />
+      <CatalogCoverImage url={service.cover_image_url} />
       {typeof onToggleFavorite === 'function' ? (
         <FavoriteButton active={isFavorite} onClick={onToggleFavorite} disabled={favoriteLoading} />
       ) : null}
@@ -102,9 +134,9 @@ export function ServiceCard({
         <h3 className="line-clamp-1 text-lg font-semibold text-brand">{service.title}</h3>
         <p className="line-clamp-1 text-sm text-accent">{service.description || 'No description yet.'}</p>
         <div className="flex items-center gap-1 text-xs text-accent">
-          <MapPin size={12} /> Country #{service.country_id}, city #{service.city_id}
+          <MapPin size={12} /> {countryName}, {cityName}
         </div>
-        <p className="text-xs text-brand">{AttributeBadge({ service })}</p>
+        <p className="text-xs text-brand">{AttributeBadge({ service, getCityName: geo.getCityName })}</p>
         <div className="flex items-center gap-1 text-xs text-accent">
           <Star size={12} className="text-amber-500" /> 4.8 (sample)
         </div>

@@ -5,6 +5,7 @@ import { listMyBookings } from '../../features/bookings/bookings.api';
 import { EmptyState, ErrorState } from '../../components/ui/AsyncState';
 import { getErrorMessage } from '../../lib/errors';
 import { MotionFade } from '../../components/ui/MotionFade';
+import { useGeoDictionaries } from '../../features/geo/useGeoDictionaries';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -61,7 +62,7 @@ function BookingSkeleton() {
   );
 }
 
-function BookingCard({ booking }) {
+function BookingCard({ booking, geo }) {
   const nights = getNights(booking.start_date, booking.end_date);
   const service = booking.service;
 
@@ -84,7 +85,7 @@ function BookingCard({ booking }) {
             <h3 className="text-xl font-semibold text-brand">{service?.title || 'Service'}</h3>
             <p className="mt-1 inline-flex items-center gap-1 text-xs text-accent">
               <MapPin size={12} />
-              Country #{service?.country_id}, city #{service?.city_id}
+              {geo.getCountryName(service?.country_id)}, {geo.getCityName(service?.city_id)}
             </p>
           </div>
 
@@ -129,6 +130,7 @@ function BookingCard({ booking }) {
 }
 
 export function BookingsPage() {
+  const geo = useGeoDictionaries();
   const query = useQuery({
     queryKey: ['bookings', 'mine'],
     queryFn: listMyBookings,
@@ -165,7 +167,7 @@ export function BookingsPage() {
         <div className="space-y-3">
           {items.map((booking, idx) => (
             <MotionFade key={booking.id} delay={Math.min(idx * 0.03, 0.18)}>
-              <BookingCard booking={booking} />
+              <BookingCard booking={booking} geo={geo} />
             </MotionFade>
           ))}
         </div>

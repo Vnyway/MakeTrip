@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
 import { getBookingById, updateBookingStatus } from '../../features/bookings/bookings.api';
+import { useGeoDictionaries } from '../../features/geo/useGeoDictionaries';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -37,6 +38,7 @@ function statusStyles(status) {
 
 export function BookingDetailsPage() {
   const { id } = useParams();
+  const geo = useGeoDictionaries();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -93,7 +95,7 @@ export function BookingDetailsPage() {
                 <h1 className="mt-2 text-3xl font-bold text-brand">{service?.title || 'Service'}</h1>
                 <p className="mt-1 inline-flex items-center gap-1 text-sm text-accent">
                   <MapPin size={13} />
-                  Country #{service?.country_id}, city #{service?.city_id}
+                  {geo.getCountryName(service?.country_id)}, {geo.getCityName(service?.city_id)}
                 </p>
               </div>
 

@@ -252,7 +252,7 @@ async function updateTourItem(userId, tourId, itemId, body) {
     await assertTourOwned(client, userId, tourId);
 
     const existing = await client.query(
-      `SELECT id FROM tour_items WHERE id = $1 AND tour_id = $2 FOR UPDATE`,
+      `SELECT id, day_number, position FROM tour_items WHERE id = $1 AND tour_id = $2 FOR UPDATE`,
       [itemId, tourId],
     );
 
@@ -262,8 +262,30 @@ async function updateTourItem(userId, tourId, itemId, body) {
       throw err;
     }
 
+    const cur = existing.rows[0];
+    const curDay = Number(cur.day_number);
+    const curPos = Number(cur.position);
+
     if (body.service_id !== undefined) {
       await assertServiceExists(client, body.service_id);
+    }
+
+    const explicitDay = body.day_number !== undefined;
+    const explicitPos = body.position !== undefined;
+
+    let nextDay = explicitDay ? body.day_number : curDay;
+    let nextPos = explicitPos ? body.position : curPos;
+
+    // Moving to another day without an explicit new position: append to the end of the target day
+    // so we never violate UNIQUE (tour_id, day_number, position) by keeping the old slot number.
+    if (explicitDay && body.day_number !== curDay && !explicitPos) {
+      const pr = await client.query(
+        `SELECT COALESCE(MAX(position), -1) + 1 AS next_pos
+         FROM tour_items
+         WHERE tour_id = $1 AND day_number = $2 AND id <> $3`,
+        [tourId, body.day_number, itemId],
+      );
+      nextPos = Number(pr.rows[0].next_pos);
     }
 
     const assignments = [];
@@ -276,15 +298,12 @@ async function updateTourItem(userId, tourId, itemId, body) {
       p += 1;
     }
 
-    if (body.day_number !== undefined) {
+    if (explicitDay || explicitPos) {
       assignments.push(`day_number = $${p}`);
-      params.push(body.day_number);
+      params.push(nextDay);
       p += 1;
-    }
-
-    if (body.position !== undefined) {
       assignments.push(`position = $${p}`);
-      params.push(body.position);
+      params.push(nextPos);
       p += 1;
     }
 

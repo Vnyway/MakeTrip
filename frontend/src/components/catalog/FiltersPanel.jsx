@@ -1,5 +1,7 @@
 import { SlidersHorizontal } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { SORT_OPTIONS, STATUS_OPTIONS } from '../../features/catalog/catalog.constants';
+import { listCities, listCountries } from '../../features/geo/geo.api';
 
 function Input({ label, value, onChange, type = 'text', placeholder }) {
   return (
@@ -26,6 +28,23 @@ export function FiltersPanel({
   showActivityKind,
   showFlightFields,
 }) {
+  const countriesQuery = useQuery({
+    queryKey: ['geo', 'countries', 'filters'],
+    queryFn: listCountries,
+  });
+  const cityByCountryQuery = useQuery({
+    queryKey: ['geo', 'cities', 'filters', values.country_id || 'none'],
+    queryFn: () => listCities(values.country_id),
+    enabled: Boolean(values.country_id),
+  });
+  const allCitiesQuery = useQuery({
+    queryKey: ['geo', 'cities', 'filters', 'all'],
+    queryFn: () => listCities(),
+  });
+  const countries = countriesQuery.data || [];
+  const citiesByCountry = cityByCountryQuery.data || [];
+  const allCities = allCitiesQuery.data || [];
+
   return (
     <section className="space-y-4 rounded-xl border border-mint-200 bg-white p-4 shadow-card">
       <div className="flex items-center gap-2 text-brand">
@@ -81,8 +100,39 @@ export function FiltersPanel({
           </select>
         </label>
 
-        <Input label="Country ID" value={values.country_id} onChange={(v) => setValue('country_id', v)} type="number" />
-        <Input label="City ID" value={values.city_id} onChange={(v) => setValue('city_id', v)} type="number" />
+        <label className="space-y-1 text-sm">
+          <span className="font-medium text-brand">Country</span>
+          <select
+            value={values.country_id ?? ''}
+            onChange={(event) => {
+              setValue('country_id', event.target.value);
+              setValue('city_id', '');
+            }}
+            className="w-full rounded-md border border-mint-200 bg-white px-3 py-2 text-sm text-brand outline-none"
+          >
+            <option value="">All countries</option>
+            {countries.map((country) => (
+              <option key={country.id} value={country.id}>
+                {country.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="space-y-1 text-sm">
+          <span className="font-medium text-brand">City</span>
+          <select
+            value={values.city_id ?? ''}
+            onChange={(event) => setValue('city_id', event.target.value)}
+            className="w-full rounded-md border border-mint-200 bg-white px-3 py-2 text-sm text-brand outline-none"
+          >
+            <option value="">{values.country_id ? 'All cities in country' : 'Select country first (optional)'}</option>
+            {citiesByCountry.map((city) => (
+              <option key={city.id} value={city.id}>
+                {city.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <Input label="Min price" value={values.min_price_usd} onChange={(v) => setValue('min_price_usd', v)} type="number" />
         <Input label="Max price" value={values.max_price_usd} onChange={(v) => setValue('max_price_usd', v)} type="number" />
 
@@ -93,18 +143,36 @@ export function FiltersPanel({
 
         {showFlightFields ? (
           <>
-            <Input
-              label="Origin city ID"
-              value={values.origin_city_id}
-              onChange={(v) => setValue('origin_city_id', v)}
-              type="number"
-            />
-            <Input
-              label="Destination city ID"
-              value={values.destination_city_id}
-              onChange={(v) => setValue('destination_city_id', v)}
-              type="number"
-            />
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-brand">Origin city</span>
+              <select
+                value={values.origin_city_id ?? ''}
+                onChange={(event) => setValue('origin_city_id', event.target.value)}
+                className="w-full rounded-md border border-mint-200 bg-white px-3 py-2 text-sm text-brand outline-none"
+              >
+                <option value="">Any origin city</option>
+                {allCities.map((city) => (
+                  <option key={city.id} value={city.id}>
+                    {city.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-brand">Destination city</span>
+              <select
+                value={values.destination_city_id ?? ''}
+                onChange={(event) => setValue('destination_city_id', event.target.value)}
+                className="w-full rounded-md border border-mint-200 bg-white px-3 py-2 text-sm text-brand outline-none"
+              >
+                <option value="">Any destination city</option>
+                {allCities.map((city) => (
+                  <option key={city.id} value={city.id}>
+                    {city.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           </>
         ) : null}
       </div>

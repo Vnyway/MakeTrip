@@ -1,4 +1,24 @@
 const { pool } = require('../config/db');
+const { aws } = require('../config/env');
+const s3PresignService = require('./s3Presign.service');
+
+async function attachCoverImageUrl(service, coverS3Url) {
+  if (!coverS3Url) {
+    return service;
+  }
+
+  if (aws) {
+    try {
+      const key = s3PresignService.objectKeyFromStoredUrl(coverS3Url);
+      const signed = await s3PresignService.presignGetObject({ key });
+      return { ...service, cover_image_url: signed.download_url };
+    } catch {
+      return { ...service, cover_image_url: coverS3Url };
+    }
+  }
+
+  return { ...service, cover_image_url: coverS3Url };
+}
 
 function mapServiceRow(row) {
   const base = {
@@ -227,7 +247,14 @@ async function listServices(filters) {
       f.depart_at AS flight_depart_at,
       f.arrive_at AS flight_arrive_at,
       a.activity_kind AS activity_kind,
-      a.duration_minutes AS activity_duration_minutes
+      a.duration_minutes AS activity_duration_minutes,
+      (
+        SELECT sm.s3_url
+        FROM service_media sm
+        WHERE sm.service_id = s.id AND sm.media_type = 'image'
+        ORDER BY sm.sort_order ASC, sm.id ASC
+        LIMIT 1
+      ) AS cover_s3_url
     FROM services s
     LEFT JOIN hotels h ON h.service_id = s.id
     LEFT JOIN restaurants r ON r.service_id = s.id
@@ -246,7 +273,12 @@ async function listServices(filters) {
   ]);
 
   const total = Number(countResult.rows[0]?.cnt || 0);
-  const items = listResult.rows.map(mapServiceRow);
+  const items = await Promise.all(
+    listResult.rows.map(async (row) => {
+      const mapped = mapServiceRow(row);
+      return attachCoverImageUrl(mapped, row.cover_s3_url);
+    }),
+  );
 
   return {
     items,

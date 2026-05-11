@@ -5,6 +5,7 @@ import { getMyReviews } from '../../features/reviews/reviews.api';
 import { EmptyState, ErrorState } from '../../components/ui/AsyncState';
 import { getErrorMessage } from '../../lib/errors';
 import { MotionFade } from '../../components/ui/MotionFade';
+import { useGeoDictionaries } from '../../features/geo/useGeoDictionaries';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -35,7 +36,7 @@ function ReviewSkeletonCard() {
   );
 }
 
-function ReviewCard({ item }) {
+function ReviewCard({ item, geo }) {
   const service = item.service;
 
   return (
@@ -56,7 +57,7 @@ function ReviewCard({ item }) {
           <div className="flex flex-wrap items-center gap-3 text-xs text-accent">
             <span className="inline-flex items-center gap-1">
               <MapPin size={12} />
-              Country #{service.country_id}, city #{service.city_id}
+              {geo.getCountryName(service.country_id)}, {geo.getCityName(service.city_id)}
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-mint-100 px-2 py-0.5 text-[11px] font-medium text-brand">
               ${Number(service.price_usd || 0).toFixed(0)}
@@ -95,6 +96,7 @@ function ReviewCard({ item }) {
 }
 
 export function ReviewsPage() {
+  const geo = useGeoDictionaries();
   const query = useQuery({
     queryKey: ['my-reviews'],
     queryFn: getMyReviews,
@@ -133,7 +135,7 @@ export function ReviewsPage() {
         <div className="space-y-3">
           {items.map((item, idx) => (
             <MotionFade key={item.id} delay={Math.min(idx * 0.03, 0.18)}>
-              <ReviewCard item={item} />
+              <ReviewCard item={item} geo={geo} />
             </MotionFade>
           ))}
         </div>
