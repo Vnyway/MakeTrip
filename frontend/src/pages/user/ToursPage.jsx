@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { createTour, deleteTour, listTours, updateTour } from '../../features/tours/tours.api';
 import { getErrorMessage } from '../../lib/errors';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/AsyncState';
+import { formatDate } from '../../lib/date';
 import { MotionFade } from '../../components/ui/MotionFade';
 
 export function ToursPage() {
@@ -146,7 +147,9 @@ export function ToursPage() {
                     <p className="mt-2 line-clamp-2 text-sm text-accent">{tour.notes || 'No notes yet.'}</p>
                     <p className="mt-2 inline-flex items-center gap-1 text-xs text-accent">
                       <CalendarDays size={12} />
-                      Updated: {new Date(tour.updated_at).toLocaleDateString()}
+                      {tour.start_date
+                        ? `Starts ${formatDate(tour.start_date)}`
+                        : `Updated: ${formatDate(tour.updated_at)}`}
                     </p>
 
                     <div className="mt-4 flex flex-wrap gap-2">

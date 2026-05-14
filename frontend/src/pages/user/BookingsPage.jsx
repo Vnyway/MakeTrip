@@ -7,13 +7,7 @@ import { EmptyState, ErrorState } from '../../components/ui/AsyncState';
 import { getErrorMessage } from '../../lib/errors';
 import { MotionFade } from '../../components/ui/MotionFade';
 import { useGeoDictionaries } from '../../features/geo/useGeoDictionaries';
-
-function formatDate(value) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleDateString();
-}
+import { formatDate } from '../../lib/date';
 
 function getKindLabel(kind) {
   if (kind === 'hotel') return 'hotel';

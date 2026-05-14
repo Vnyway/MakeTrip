@@ -145,41 +145,29 @@ function clamp01(value) {
   return Math.min(1, Math.max(0, value));
 }
 
-function contentBoost(service, prefs) {
-  let score = 0.38;
+/**
+ * Content-based boost using implicit tag preferences derived from behavior.
+ * @param {string[]} serviceTags - slugs attached to the candidate service
+ * @param {Record<string, number>} userTagWeights - slug → accumulated weight from user's interactions
+ * @returns {number} score in [0, 1]
+ */
+function contentBoost(serviceTags, userTagWeights) {
+  const BASE = 0.38;
 
-  for (const pref of prefs) {
-    const weight = Number(pref.weight);
-    const w = Number.isFinite(weight) && weight > 0 ? weight : 1;
+  if (!serviceTags.length || !Object.keys(userTagWeights).length) return BASE;
 
-    if (pref.preference_key === 'preferred_kind' && pref.preference_value) {
-      const wanted = String(pref.preference_value).trim().toLowerCase();
-      if (wanted && service.kind && wanted === String(service.kind).toLowerCase()) {
-        score += 0.32 * w;
-      }
-    }
+  const totalUserWeight = Object.values(userTagWeights).reduce((a, b) => a + b, 0);
+  if (!totalUserWeight) return BASE;
 
-    if (pref.preference_key === 'budget_max_usd') {
-      const maxUsd = Number(pref.preference_value);
-      if (Number.isFinite(maxUsd) && maxUsd > 0) {
-        if (service.price_usd <= maxUsd) {
-          score += 0.25 * w;
-        } else {
-          score += 0.08 * w * clamp01(maxUsd / service.price_usd);
-        }
-      }
-    }
-
-    if (pref.preference_key === 'preferred_activity_kind' && service.kind === 'activity') {
-      const needle = String(pref.preference_value || '').trim().toLowerCase();
-      const hay = String(service.activity?.activity_kind || '').toLowerCase();
-      if (needle && hay.includes(needle)) {
-        score += 0.22 * w;
-      }
+  let matchedWeight = 0;
+  for (const tag of serviceTags) {
+    if (userTagWeights[tag] > 0) {
+      matchedWeight += userTagWeights[tag];
     }
   }
 
-  return clamp01(score);
+  const matchRatio = Math.min(1, matchedWeight / totalUserWeight);
+  return clamp01(BASE + 0.52 * matchRatio);
 }
 
 async function fetchCandidates(filters) {
@@ -213,7 +201,8 @@ async function fetchCandidates(filters) {
       f.depart_at AS flight_depart_at,
       f.arrive_at AS flight_arrive_at,
       a.activity_kind AS activity_kind,
-      a.duration_minutes AS activity_duration_minutes
+      a.duration_minutes AS activity_duration_minutes,
+      ARRAY(SELECT t.slug FROM service_tags st JOIN tags t ON t.id = st.tag_id WHERE st.service_id = s.id ORDER BY t.slug) AS tags
     FROM services s
     LEFT JOIN hotels h ON h.service_id = s.id
     LEFT JOIN restaurants r ON r.service_id = s.id
@@ -231,15 +220,47 @@ async function fetchCandidates(filters) {
   }));
 }
 
-async function loadPreferences(userId) {
+/**
+ * Infer tag preferences implicitly from user's interaction history.
+ * Returns a map of tag slug → accumulated interaction weight.
+ */
+async function inferTagPrefs(userId) {
   const result = await pool.query(
-    `SELECT preference_key, preference_value, weight
-     FROM user_preferences
-     WHERE user_id = $1`,
+    `SELECT
+       t.slug,
+       SUM(
+         CASE ui.interaction_type
+           WHEN 'view'            THEN 0.08
+           WHEN 'click'           THEN 0.15
+           WHEN 'favorite_add'    THEN 1.0
+           WHEN 'favorite_remove' THEN -0.35
+           WHEN 'booking'         THEN 2.5
+           WHEN 'review'          THEN 1.5
+           ELSE 0
+         END
+       )::float8 AS weight
+     FROM user_interactions ui
+     JOIN service_tags st ON st.service_id = ui.service_id
+     JOIN tags t ON t.id = st.tag_id
+     WHERE ui.user_id = $1
+     GROUP BY t.slug
+     HAVING SUM(
+       CASE ui.interaction_type
+         WHEN 'view'            THEN 0.08
+         WHEN 'click'           THEN 0.15
+         WHEN 'favorite_add'    THEN 1.0
+         WHEN 'favorite_remove' THEN -0.35
+         WHEN 'booking'         THEN 2.5
+         WHEN 'review'          THEN 1.5
+         ELSE 0
+       END
+     ) > 0
+     ORDER BY weight DESC
+     LIMIT 10`,
     [userId],
   );
 
-  return result.rows;
+  return Object.fromEntries(result.rows.map((r) => [r.slug, Number(r.weight)]));
 }
 
 async function loadCollaborativeScores(userId, serviceIds) {
@@ -409,8 +430,8 @@ async function getRecommendations(userId, filters) {
     };
   }
 
-  const [prefs, cfRaw, reviewStats, trafficStats, selfIntensity] = await Promise.all([
-    loadPreferences(userId),
+  const [tagWeights, cfRaw, reviewStats, trafficStats, selfIntensity] = await Promise.all([
+    inferTagPrefs(userId),
     loadCollaborativeScores(userId, serviceIds),
     loadReviewStats(serviceIds),
     loadInteractionTraffic(serviceIds),
@@ -430,7 +451,7 @@ async function getRecommendations(userId, filters) {
 
     const cf = cfNorm[id] || 0;
     const pop = popNorm[id] || 0;
-    const cb = contentBoost(service, prefs);
+    const cb = contentBoost(service.tags || [], tagWeights);
 
     const self = selfIntensity[id] || 0;
     const selfPenalty = Math.min(0.28, Math.max(0, self) * 0.12);

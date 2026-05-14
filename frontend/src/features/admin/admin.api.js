@@ -65,6 +65,16 @@ export async function getServiceMediaReadUrl(serviceId, mediaId) {
   return data.download_url;
 }
 
+export async function listTags() {
+  const { data } = await api.get('/api/tags');
+  return data.items || [];
+}
+
+export async function setServiceTags(serviceId, slugs) {
+  const { data } = await api.put(`/api/services/${serviceId}/tags`, { slugs });
+  return data.tags;
+}
+
 export async function listCountries() {
   const { data } = await api.get('/api/geo/countries');
   return data.items || [];

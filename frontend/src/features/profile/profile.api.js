@@ -5,8 +5,3 @@ export async function getProfile() {
   return data;
 }
 
-export async function updatePreferences(payload) {
-  const { data } = await api.put('/api/profile/preferences', payload);
-  return data.preferences;
-}
-

@@ -15,6 +15,29 @@ export const STATUS_OPTIONS = [
 
 export const DEFAULT_LIMIT = 8;
 
+export const TAGS = [
+  { slug: 'relaxation',  label: 'Relaxation' },
+  { slug: 'adventure',   label: 'Adventure' },
+  { slug: 'romantic',    label: 'Romantic' },
+  { slug: 'family',      label: 'Family' },
+  { slug: 'cultural',    label: 'Cultural' },
+  { slug: 'beach',       label: 'Beach & Sea' },
+  { slug: 'mountains',   label: 'Mountains' },
+  { slug: 'city',        label: 'City' },
+  { slug: 'nature',      label: 'Nature' },
+  { slug: 'islands',     label: 'Islands' },
+  { slug: 'sightseeing', label: 'Sightseeing' },
+  { slug: 'wellness',    label: 'Wellness & Spa' },
+  { slug: 'active',      label: 'Active Sports' },
+  { slug: 'gastronomy',  label: 'Gastronomy' },
+  { slug: 'nightlife',   label: 'Nightlife' },
+  { slug: 'shopping',    label: 'Shopping' },
+];
+
+export function getTagLabel(slug) {
+  return TAGS.find((t) => t.slug === slug)?.label ?? slug;
+}
+
 export function getKindLabel(kind) {
   if (kind === 'hotel') return 'Hotel';
   if (kind === 'restaurant') return 'Restaurant';

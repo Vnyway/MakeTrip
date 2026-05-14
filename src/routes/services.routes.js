@@ -11,6 +11,8 @@ const {
   listQuerySchema,
   uuidSchema,
 } = require('../validators/services.validator');
+const { z } = require('zod');
+const { pool } = require('../config/db');
 const { mediaPresignSchema, mediaRegisterSchema } = require('../validators/media.validator');
 
 const router = express.Router();
@@ -160,6 +162,55 @@ router.delete(
     }
 
     return res.status(204).send();
+  }),
+);
+
+const serviceTagsBodySchema = z.object({
+  slugs: z.array(z.string().min(1).max(50)).max(16).default([]),
+});
+
+router.put(
+  '/:serviceId/tags',
+  authenticate(),
+  requireRoles('admin'),
+  catchAsync(async (req, res) => {
+    const serviceId = uuidSchema.parse(req.params.serviceId);
+    const { slugs } = serviceTagsBodySchema.parse(req.body || {});
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      await client.query(`DELETE FROM service_tags WHERE service_id = $1`, [serviceId]);
+
+      if (slugs.length) {
+        const tagRows = await client.query(
+          `SELECT id, slug FROM tags WHERE slug = ANY($1::varchar[])`,
+          [slugs],
+        );
+
+        for (const tag of tagRows.rows) {
+          await client.query(
+            `INSERT INTO service_tags (service_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [serviceId, tag.id],
+          );
+        }
+      }
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    const { rows } = await pool.query(
+      `SELECT t.slug FROM service_tags st JOIN tags t ON t.id = st.tag_id WHERE st.service_id = $1 ORDER BY t.slug`,
+      [serviceId],
+    );
+
+    return res.json({ tags: rows.map((r) => r.slug) });
   }),
 );
 

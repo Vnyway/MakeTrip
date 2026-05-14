@@ -10,7 +10,10 @@ import {
   listCities,
   createServiceMediaPresign,
   registerServiceMedia,
+  listTags,
+  setServiceTags,
 } from '../../features/admin/admin.api';
+import { TAGS } from '../../features/catalog/catalog.constants';
 import { getErrorMessage } from '../../lib/errors';
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -31,7 +34,34 @@ function baseForm(kind = 'hotel') {
     flight_origin_city_id: '',
     flight_destination_country_id: '',
     flight_destination_city_id: '',
+    tags: [],
   };
+}
+
+function TagMultiSelect({ selected, onChange, compact = false }) {
+  return (
+    <div className={`flex flex-wrap gap-1 ${compact ? '' : 'mt-1'}`}>
+      {TAGS.map((tag) => {
+        const active = selected.includes(tag.slug);
+        return (
+          <button
+            key={tag.slug}
+            type="button"
+            onClick={() =>
+              onChange(active ? selected.filter((s) => s !== tag.slug) : [...selected, tag.slug])
+            }
+            className={`rounded-full border px-2 py-0.5 text-[11px] font-medium transition ${
+              active
+                ? 'border-brand bg-brand text-white'
+                : 'border-mint-200 bg-white text-accent hover:border-brand hover:text-brand'
+            }`}
+          >
+            {tag.label}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function validateImage(file) {
@@ -197,6 +227,10 @@ export function AdminServicesPage() {
         }
       }
 
+      if (servicePayload.tags?.length) {
+        await setServiceTags(createdService.id, servicePayload.tags);
+      }
+
       return createdService;
     },
     onSuccess: async () => {
@@ -233,6 +267,15 @@ export function AdminServicesPage() {
     onError: (error) => toast.error(getErrorMessage(error, 'Could not delete service.')),
   });
 
+  const setTagsMutation = useMutation({
+    mutationFn: ({ id, slugs }) => setServiceTags(id, slugs),
+    onSuccess: async () => {
+      toast.success('Tags updated.');
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'services'] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error, 'Could not update tags.')),
+  });
+
   const items = query.data || [];
   const cityOptions = citiesQuery.data || [];
   const originCityOptions = originCitiesQuery.data || [];
@@ -256,7 +299,7 @@ export function AdminServicesPage() {
           onSubmit={(event) => {
             event.preventDefault();
             createMutation.mutate({
-              servicePayload: toPayload(form),
+              servicePayload: { ...toPayload(form), tags: form.tags },
               imageFiles: createImageFiles,
               imageSortOrder: createImageSortOrder,
             });
@@ -472,6 +515,14 @@ export function AdminServicesPage() {
             />
           </label>
 
+          <div className="text-xs text-accent sm:col-span-2 lg:col-span-4">
+            Tags
+            <TagMultiSelect
+              selected={form.tags}
+              onChange={(tags) => setForm((p) => ({ ...p, tags }))}
+            />
+          </div>
+
           <label className="text-xs text-accent sm:col-span-2 lg:col-span-3">
             Service images (optional)
             <input
@@ -531,6 +582,7 @@ export function AdminServicesPage() {
               <th className="px-3 py-2">Country</th>
               <th className="px-3 py-2">Price</th>
               <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Tags</th>
               <th className="px-3 py-2">Actions</th>
             </tr>
           </thead>
@@ -558,6 +610,13 @@ export function AdminServicesPage() {
                     <option value="draft">draft</option>
                     <option value="inactive">inactive</option>
                   </select>
+                </td>
+                <td className="px-3 py-2 max-w-[220px]">
+                  <TagMultiSelect
+                    selected={item.tags || []}
+                    compact
+                    onChange={(slugs) => setTagsMutation.mutate({ id: item.id, slugs })}
+                  />
                 </td>
                 <td className="px-3 py-2">
                   <button

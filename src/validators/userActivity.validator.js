@@ -27,16 +27,20 @@ const reviewPatchSchema = z
 
 const bookingStatusEnum = z.enum(['pending', 'confirmed', 'cancelled', 'completed']);
 
-const bookingCreateSchema = z
-  .object({
-    service_id: uuidSchema,
-    start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    persons_count: z.number().int().positive(),
-    total_price_usd: z.number().nonnegative(),
-    status: bookingStatusEnum.optional(),
-  })
-  .strict();
+const bookingCreateSchema = z.object({
+  service_id: uuidSchema,
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  start_time: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .optional()
+    .nullable(),
+  persons_count: z.number().int().positive(),
+  total_price_usd: z.number().nonnegative(),
+  status: bookingStatusEnum.optional(),
+  booking_meta: z.record(z.any()).optional().default({}),
+});
 
 const bookingPatchSchema = z
   .object({

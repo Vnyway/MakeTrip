@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Heart, MapPin, Star, Clock3, Plane, UtensilsCrossed, Hotel } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getKindLabel } from '../../features/catalog/catalog.constants';
+import { getKindLabel, getTagLabel } from '../../features/catalog/catalog.constants';
 import { useGeoDictionaries } from '../../features/geo/useGeoDictionaries';
 
 function KindIcon({ kind }) {
@@ -148,6 +148,20 @@ export function ServiceCard({
             : <span className="text-accent/60">No reviews</span>
           }
         </div>
+        {service.tags?.length ? (
+          <div className="flex flex-wrap gap-1">
+            {service.tags.slice(0, 3).map((slug) => (
+              <span key={slug} className="rounded-full bg-mint-100 px-2 py-0.5 text-[10px] font-medium text-brand">
+                {getTagLabel(slug)}
+              </span>
+            ))}
+            {service.tags.length > 3 ? (
+              <span className="rounded-full bg-mint-100 px-2 py-0.5 text-[10px] font-medium text-accent">
+                +{service.tags.length - 3}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         <div className="mt-3 flex items-center justify-between border-t border-mint-200 pt-3">
           <p className="text-xl font-bold text-brand">{formatPrice(service.price_usd)}</p>
           <div className="flex gap-2">

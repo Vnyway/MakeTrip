@@ -34,6 +34,7 @@ function mapServiceRow(row) {
     kind: row.kind,
     avg_rating: row.avg_rating != null ? Number(row.avg_rating) : null,
     review_count: row.review_count != null ? Number(row.review_count) : 0,
+    tags: Array.isArray(row.tags) ? row.tags : [],
   };
 
   if (base.kind === 'hotel') {
@@ -132,6 +133,7 @@ async function listServices(filters, userId) {
     origin_city_id,
     destination_city_id,
     q,
+    tags,
     page,
     limit,
     sort,
@@ -223,6 +225,19 @@ async function listServices(filters, userId) {
     i += 1;
   }
 
+  if (tags && tags.length) {
+    clause.push(`
+      s.id IN (
+        SELECT DISTINCT st.service_id
+        FROM service_tags st
+        JOIN tags t ON t.id = st.tag_id
+        WHERE t.slug = ANY($${i}::varchar[])
+      )
+    `);
+    params.push(tags);
+    i += 1;
+  }
+
   const whereSql = clause.join('\n AND ');
 
   const countQuery = `
@@ -271,7 +286,8 @@ async function listServices(filters, userId) {
         LIMIT 1
       ) AS cover_s3_url,
       (SELECT ROUND(AVG(rv.rating)::numeric, 1)::float8 FROM reviews rv WHERE rv.service_id = s.id) AS avg_rating,
-      (SELECT COUNT(*)::int FROM reviews rv WHERE rv.service_id = s.id) AS review_count
+      (SELECT COUNT(*)::int FROM reviews rv WHERE rv.service_id = s.id) AS review_count,
+      ARRAY(SELECT t.slug FROM service_tags st JOIN tags t ON t.id = st.tag_id WHERE st.service_id = s.id ORDER BY t.slug) AS tags
     FROM services s
     LEFT JOIN hotels h ON h.service_id = s.id
     LEFT JOIN restaurants r ON r.service_id = s.id
@@ -376,7 +392,8 @@ const detailQueryPrefix = `
     a.activity_kind AS activity_kind,
     a.duration_minutes AS activity_duration_minutes,
     (SELECT ROUND(AVG(rv.rating)::numeric, 1)::float8 FROM reviews rv WHERE rv.service_id = s.id) AS avg_rating,
-    (SELECT COUNT(*)::int FROM reviews rv WHERE rv.service_id = s.id) AS review_count
+    (SELECT COUNT(*)::int FROM reviews rv WHERE rv.service_id = s.id) AS review_count,
+    ARRAY(SELECT t.slug FROM service_tags st JOIN tags t ON t.id = st.tag_id WHERE st.service_id = s.id ORDER BY t.slug) AS tags
   FROM services s
   LEFT JOIN hotels h ON h.service_id = s.id
   LEFT JOIN restaurants r ON r.service_id = s.id

@@ -1,6 +1,6 @@
 import { SlidersHorizontal } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { SORT_OPTIONS, STATUS_OPTIONS } from '../../features/catalog/catalog.constants';
+import { SORT_OPTIONS, STATUS_OPTIONS, TAGS } from '../../features/catalog/catalog.constants';
 import { listCities, listCountries } from '../../features/geo/geo.api';
 
 function Input({ label, value, onChange, type = 'text', placeholder }) {
@@ -28,6 +28,7 @@ export function FiltersPanel({
   showActivityKind,
   showFlightFields,
 }) {
+  const selectedTags = Array.isArray(values.tags) ? values.tags : [];
   const countriesQuery = useQuery({
     queryKey: ['geo', 'countries', 'filters'],
     queryFn: listCountries,
@@ -183,6 +184,34 @@ export function FiltersPanel({
             </label>
           </>
         ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-brand">Vibes & Tags</p>
+        <div className="flex flex-wrap gap-1.5">
+          {TAGS.map((tag) => {
+            const active = selectedTags.includes(tag.slug);
+            return (
+              <button
+                key={tag.slug}
+                type="button"
+                onClick={() => {
+                  const next = active
+                    ? selectedTags.filter((s) => s !== tag.slug)
+                    : [...selectedTags, tag.slug];
+                  setValue('tags', next);
+                }}
+                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                  active
+                    ? 'border-brand bg-brand text-white'
+                    : 'border-mint-200 bg-white text-accent hover:border-brand hover:text-brand'
+                }`}
+              >
+                {tag.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

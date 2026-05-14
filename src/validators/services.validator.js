@@ -111,6 +111,12 @@ const listQuerySchema = z
     origin_city_id: z.coerce.number().int().positive().optional(),
     destination_city_id: z.coerce.number().int().positive().optional(),
     q: z.string().trim().min(1).max(200).optional(),
+    tags: z
+      .string()
+      .optional()
+      .transform((val) =>
+        val ? val.split(',').map((s) => s.trim()).filter(Boolean) : undefined,
+      ),
     page: z.coerce.number().int().positive().optional().default(1),
     limit: z.coerce.number().int().positive().max(100).optional().default(20),
     sort: z

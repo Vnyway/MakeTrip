@@ -31,6 +31,7 @@ function defaultFilterState(query, fixedKind) {
     activity_kind: query.activity_kind || '',
     origin_city_id: query.origin_city_id ?? '',
     destination_city_id: query.destination_city_id ?? '',
+    tags: Array.isArray(query.tags) ? query.tags : [],
   };
 }
 
@@ -47,6 +48,7 @@ function parseFilterValues(raw) {
     activity_kind: raw.activity_kind || undefined,
     origin_city_id: raw.origin_city_id === '' ? undefined : Number(raw.origin_city_id),
     destination_city_id: raw.destination_city_id === '' ? undefined : Number(raw.destination_city_id),
+    tags: Array.isArray(raw.tags) && raw.tags.length ? raw.tags.join(',') : undefined,
   };
 }
 

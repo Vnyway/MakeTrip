@@ -15,6 +15,7 @@ const toursRouter = require('./routes/tours.routes');
 const recommendationsRouter = require('./routes/recommendations.routes');
 const profileRouter = require('./routes/profile.routes');
 const geoRouter = require('./routes/geo.routes');
+const tagsRouter = require('./routes/tags.routes');
 const { errorMiddleware } = require('./middleware/error.middleware');
 
 const app = express();
@@ -43,6 +44,7 @@ app.use('/api/tours', toursRouter);
 app.use('/api/recommendations', recommendationsRouter);
 app.use('/api/profile', profileRouter);
 app.use('/api/geo', geoRouter);
+app.use('/api/tags', tagsRouter);
 
 app.use((req, res) => {
   res.status(404).json({

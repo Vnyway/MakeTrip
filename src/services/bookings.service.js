@@ -36,6 +36,8 @@ async function listMine(userId) {
        b.service_id,
        b.start_date,
        b.end_date,
+       b.start_time,
+       b.booking_meta,
        b.persons_count,
        b.total_price_usd,
        b.status::text AS status,
@@ -84,6 +86,8 @@ async function listMine(userId) {
         service_id: row.service_id,
         start_date: row.start_date,
         end_date: row.end_date,
+        start_time: row.start_time ?? null,
+        booking_meta: row.booking_meta ?? {},
         persons_count: Number(row.persons_count),
         total_price_usd: Number(row.total_price_usd),
         status: row.status,
@@ -103,6 +107,8 @@ async function getById(userId, bookingId) {
        b.service_id,
        b.start_date,
        b.end_date,
+       b.start_time,
+       b.booking_meta,
        b.persons_count,
        b.total_price_usd,
        b.status::text AS status,
@@ -152,6 +158,8 @@ async function getById(userId, bookingId) {
     service_id: row.service_id,
     start_date: row.start_date,
     end_date: row.end_date,
+    start_time: row.start_time ?? null,
+    booking_meta: row.booking_meta ?? {},
     persons_count: Number(row.persons_count),
     total_price_usd: Number(row.total_price_usd),
     status: row.status,
@@ -174,14 +182,16 @@ async function createBooking(userId, payload) {
 
     const inserted = await client.query(
       `INSERT INTO bookings
-        (user_id, service_id, start_date, end_date, persons_count, total_price_usd, status)
-       VALUES ($1, $2, $3::date, $4::date, $5, $6, $7::booking_status)
-       RETURNING id, user_id, service_id, start_date, end_date, persons_count, total_price_usd, status::text AS status, created_at, updated_at`,
+        (user_id, service_id, start_date, end_date, start_time, booking_meta, persons_count, total_price_usd, status)
+       VALUES ($1, $2, $3::date, $4::date, $5::time, $6::jsonb, $7, $8, $9::booking_status)
+       RETURNING id, user_id, service_id, start_date, end_date, start_time, booking_meta, persons_count, total_price_usd, status::text AS status, created_at, updated_at`,
       [
         userId,
         payload.service_id,
         payload.start_date,
         payload.end_date,
+        payload.start_time ?? null,
+        JSON.stringify(payload.booking_meta ?? {}),
         payload.persons_count,
         payload.total_price_usd,
         status,

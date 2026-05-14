@@ -13,7 +13,7 @@ const SERVICE_KIND_SELECT = `
 
 async function assertTourOwned(client, userId, tourId) {
   const result = await client.query(
-    `SELECT id, user_id, title, notes, created_at, updated_at
+    `SELECT id, user_id, title, notes, start_date, created_at, updated_at
      FROM tours
      WHERE id = $1 AND user_id = $2`,
     [tourId, userId],
@@ -34,9 +34,11 @@ function mapTourItemRow(row) {
     tour_id: row.tour_id,
     service_id: row.service_id,
     day_number: Number(row.day_number),
+    end_day_number: row.end_day_number != null ? Number(row.end_day_number) : null,
     position: Number(row.position),
     quantity: Number(row.quantity),
     note: row.note,
+    scheduled_time: row.scheduled_time ?? null,
     service: {
       id: row.service_id,
       title: row.title,
@@ -52,7 +54,7 @@ function mapTourItemRow(row) {
 
 async function listTours(userId) {
   const result = await pool.query(
-    `SELECT id, user_id, title, notes, created_at, updated_at
+    `SELECT id, user_id, title, notes, start_date, created_at, updated_at
      FROM tours
      WHERE user_id = $1
      ORDER BY updated_at DESC, created_at DESC`,
@@ -66,7 +68,7 @@ async function getTourWithItems(userId, tourId) {
   await assertTourOwned(pool, userId, tourId);
 
   const tourResult = await pool.query(
-    `SELECT id, user_id, title, notes, created_at, updated_at
+    `SELECT id, user_id, title, notes, start_date, created_at, updated_at
      FROM tours
      WHERE id = $1`,
     [tourId],
@@ -80,9 +82,11 @@ async function getTourWithItems(userId, tourId) {
        ti.tour_id,
        ti.service_id,
        ti.day_number,
+       ti.end_day_number,
        ti.position,
        ti.quantity,
        ti.note,
+       ti.scheduled_time,
        s.title,
        s.description,
        s.country_id,
@@ -124,18 +128,18 @@ async function getTourWithItems(userId, tourId) {
   };
 }
 
-async function createTour(userId, { title, notes }) {
+async function createTour(userId, { title, notes, start_date }) {
   const result = await pool.query(
-    `INSERT INTO tours (user_id, title, notes)
-     VALUES ($1, $2, $3)
-     RETURNING id, user_id, title, notes, created_at, updated_at`,
-    [userId, title, notes ?? null],
+    `INSERT INTO tours (user_id, title, notes, start_date)
+     VALUES ($1, $2, $3, $4::date)
+     RETURNING id, user_id, title, notes, start_date, created_at, updated_at`,
+    [userId, title, notes ?? null, start_date ?? null],
   );
 
   return result.rows[0];
 }
 
-async function updateTour(userId, tourId, { title, notes }) {
+async function updateTour(userId, tourId, { title, notes, start_date }) {
   const assignments = [];
   const params = [];
   let p = 1;
@@ -152,6 +156,12 @@ async function updateTour(userId, tourId, { title, notes }) {
     p += 1;
   }
 
+  if (start_date !== undefined) {
+    assignments.push(`start_date = $${p}::date`);
+    params.push(start_date);
+    p += 1;
+  }
+
   assignments.push(`updated_at = now()`);
 
   const idParam = `$${p}`;
@@ -161,7 +171,7 @@ async function updateTour(userId, tourId, { title, notes }) {
     `UPDATE tours
      SET ${assignments.join(', ')}
      WHERE id = ${idParam} AND user_id = ${userParam}
-     RETURNING id, user_id, title, notes, created_at, updated_at`,
+     RETURNING id, user_id, title, notes, start_date, created_at, updated_at`,
     [...params, tourId, userId],
   );
 
@@ -191,17 +201,27 @@ async function addTourItem(userId, tourId, payload) {
     await assertTourOwned(client, userId, tourId);
     await assertServiceExists(client, payload.service_id);
 
+    const posResult = await client.query(
+      `SELECT COALESCE(MAX(position), -1) + 1 AS next_pos
+       FROM tour_items
+       WHERE tour_id = $1 AND day_number = $2`,
+      [tourId, payload.day_number],
+    );
+    const nextPos = Number(posResult.rows[0].next_pos);
+
     const inserted = await client.query(
-      `INSERT INTO tour_items (tour_id, service_id, day_number, position, quantity, note)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, tour_id, service_id, day_number, position, quantity, note`,
+      `INSERT INTO tour_items (tour_id, service_id, day_number, end_day_number, position, quantity, note, scheduled_time)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::time)
+       RETURNING id, tour_id, service_id, day_number, end_day_number, position, quantity, note, scheduled_time`,
       [
         tourId,
         payload.service_id,
         payload.day_number,
-        payload.position ?? 0,
+        payload.end_day_number ?? null,
+        nextPos,
         payload.quantity ?? 1,
         payload.note ?? null,
+        payload.scheduled_time ?? null,
       ],
     );
 
@@ -236,9 +256,11 @@ async function getTourItemById(userId, tourId, itemId) {
        ti.tour_id,
        ti.service_id,
        ti.day_number,
+       ti.end_day_number,
        ti.position,
        ti.quantity,
        ti.note,
+       ti.scheduled_time,
        s.title,
        s.description,
        s.country_id,
@@ -345,6 +367,18 @@ async function updateTourItem(userId, tourId, itemId, body) {
     if (body.note !== undefined) {
       assignments.push(`note = $${p}`);
       params.push(body.note);
+      p += 1;
+    }
+
+    if (body.scheduled_time !== undefined) {
+      assignments.push(`scheduled_time = $${p}::time`);
+      params.push(body.scheduled_time);
+      p += 1;
+    }
+
+    if (body.end_day_number !== undefined) {
+      assignments.push(`end_day_number = $${p}`);
+      params.push(body.end_day_number);
       p += 1;
     }
 

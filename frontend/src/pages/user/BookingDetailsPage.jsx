@@ -6,13 +6,7 @@ import { getErrorMessage } from '../../lib/errors';
 import { getBookingById, updateBookingStatus } from '../../features/bookings/bookings.api';
 import { useGeoDictionaries } from '../../features/geo/useGeoDictionaries';
 import { CatalogCoverImage } from '../../components/catalog/ServiceCard';
-
-function formatDate(value) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleDateString();
-}
+import { formatDate, formatTime } from '../../lib/date';
 
 function getKindLabel(kind) {
   if (kind === 'hotel') return 'hotel';
@@ -29,6 +23,8 @@ function getNights(startDate, endDate) {
   const diff = Math.round((end.getTime() - start.getTime()) / 86400000);
   return diff > 0 ? diff : 0;
 }
+
+const SEAT_CLASS_LABELS = { economy: 'Economy', business: 'Business', first: 'First Class' };
 
 function statusStyles(status) {
   if (status === 'confirmed') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
@@ -111,34 +107,88 @@ export function BookingDetailsPage() {
           <article className="rounded-2xl border border-mint-200 bg-white p-5 shadow-card">
             <h2 className="text-xl font-semibold text-brand">Booking Details</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg bg-surface p-3">
-                <p className="inline-flex items-center gap-1 text-xs text-accent">
-                  <CalendarDays size={12} />
-                  Check-in Date
-                </p>
-                <p className="mt-1 font-medium text-brand">{formatDate(booking.start_date)}</p>
-              </div>
-              <div className="rounded-lg bg-surface p-3">
-                <p className="inline-flex items-center gap-1 text-xs text-accent">
-                  <CalendarDays size={12} />
-                  Check-out Date
-                </p>
-                <p className="mt-1 font-medium text-brand">{formatDate(booking.end_date)}</p>
-              </div>
-              <div className="rounded-lg bg-surface p-3">
-                <p className="inline-flex items-center gap-1 text-xs text-accent">
-                  <CalendarDays size={12} />
-                  Duration
-                </p>
-                <p className="mt-1 font-medium text-brand">{nights ? `${nights} nights` : 'same-day'}</p>
-              </div>
-              <div className="rounded-lg bg-surface p-3">
-                <p className="inline-flex items-center gap-1 text-xs text-accent">
-                  <Users size={12} />
-                  Number of Guests
-                </p>
-                <p className="mt-1 font-medium text-brand">{booking.persons_count} people</p>
-              </div>
+
+              {/* HOTEL */}
+              {service?.kind === 'hotel' && (
+                <>
+                  <div className="rounded-lg bg-surface p-3">
+                    <p className="inline-flex items-center gap-1 text-xs text-accent"><CalendarDays size={12} />Check-in Date</p>
+                    <p className="mt-1 font-medium text-brand">{formatDate(booking.start_date)}</p>
+                  </div>
+                  <div className="rounded-lg bg-surface p-3">
+                    <p className="inline-flex items-center gap-1 text-xs text-accent"><CalendarDays size={12} />Check-out Date</p>
+                    <p className="mt-1 font-medium text-brand">{formatDate(booking.end_date)}</p>
+                  </div>
+                  <div className="rounded-lg bg-surface p-3">
+                    <p className="inline-flex items-center gap-1 text-xs text-accent"><CalendarDays size={12} />Duration</p>
+                    <p className="mt-1 font-medium text-brand">{nights ? `${nights} nights` : '1 night'}</p>
+                  </div>
+                  <div className="rounded-lg bg-surface p-3">
+                    <p className="inline-flex items-center gap-1 text-xs text-accent"><Users size={12} />Guests</p>
+                    <p className="mt-1 font-medium text-brand">{booking.persons_count} people</p>
+                  </div>
+                </>
+              )}
+
+              {/* RESTAURANT / ACTIVITY */}
+              {(service?.kind === 'restaurant' || service?.kind === 'activity') && (
+                <>
+                  <div className="rounded-lg bg-surface p-3">
+                    <p className="inline-flex items-center gap-1 text-xs text-accent"><CalendarDays size={12} />Date</p>
+                    <p className="mt-1 font-medium text-brand">{formatDate(booking.start_date)}</p>
+                  </div>
+                  <div className="rounded-lg bg-surface p-3">
+                    <p className="inline-flex items-center gap-1 text-xs text-accent"><CalendarDays size={12} />Time</p>
+                    <p className="mt-1 font-medium text-brand">{formatTime(booking.start_time)}</p>
+                  </div>
+                  <div className="rounded-lg bg-surface p-3">
+                    <p className="inline-flex items-center gap-1 text-xs text-accent"><Users size={12} />Guests</p>
+                    <p className="mt-1 font-medium text-brand">{booking.persons_count} people</p>
+                  </div>
+                </>
+              )}
+
+              {/* FLIGHT */}
+              {service?.kind === 'flight' && (
+                <>
+                  <div className="rounded-lg bg-surface p-3">
+                    <p className="inline-flex items-center gap-1 text-xs text-accent"><CalendarDays size={12} />Departure Date</p>
+                    <p className="mt-1 font-medium text-brand">{formatDate(booking.start_date)}</p>
+                  </div>
+                  <div className="rounded-lg bg-surface p-3">
+                    <p className="inline-flex items-center gap-1 text-xs text-accent"><CalendarDays size={12} />Departure Time</p>
+                    <p className="mt-1 font-medium text-brand">{formatTime(booking.start_time)}</p>
+                  </div>
+                  <div className="rounded-lg bg-surface p-3">
+                    <p className="inline-flex items-center gap-1 text-xs text-accent"><Users size={12} />Passengers</p>
+                    <p className="mt-1 font-medium text-brand">{booking.persons_count} people</p>
+                  </div>
+                  {booking.booking_meta?.seat_class && (
+                    <div className="rounded-lg bg-surface p-3">
+                      <p className="text-xs text-accent">Seat Class</p>
+                      <p className="mt-1 font-medium text-brand">{SEAT_CLASS_LABELS[booking.booking_meta.seat_class] ?? booking.booking_meta.seat_class}</p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Fallback for unknown kind */}
+              {!service?.kind && (
+                <>
+                  <div className="rounded-lg bg-surface p-3">
+                    <p className="inline-flex items-center gap-1 text-xs text-accent"><CalendarDays size={12} />Start Date</p>
+                    <p className="mt-1 font-medium text-brand">{formatDate(booking.start_date)}</p>
+                  </div>
+                  <div className="rounded-lg bg-surface p-3">
+                    <p className="inline-flex items-center gap-1 text-xs text-accent"><CalendarDays size={12} />End Date</p>
+                    <p className="mt-1 font-medium text-brand">{formatDate(booking.end_date)}</p>
+                  </div>
+                  <div className="rounded-lg bg-surface p-3">
+                    <p className="inline-flex items-center gap-1 text-xs text-accent"><Users size={12} />Guests</p>
+                    <p className="mt-1 font-medium text-brand">{booking.persons_count} people</p>
+                  </div>
+                </>
+              )}
             </div>
           </article>
         </div>
@@ -156,13 +206,27 @@ export function BookingDetailsPage() {
               <span className="font-medium text-brand">{formatDate(booking.created_at)}</span>
             </div>
             <div className="flex items-center justify-between text-accent">
-              <span>Guests</span>
+              <span>{service?.kind === 'flight' ? 'Passengers' : 'Guests'}</span>
               <span className="font-medium text-brand">{booking.persons_count}</span>
             </div>
-            <div className="flex items-center justify-between text-accent">
-              <span>Nights</span>
-              <span className="font-medium text-brand">{nights}</span>
-            </div>
+            {service?.kind === 'hotel' && nights > 0 && (
+              <div className="flex items-center justify-between text-accent">
+                <span>Nights</span>
+                <span className="font-medium text-brand">{nights}</span>
+              </div>
+            )}
+            {(service?.kind === 'restaurant' || service?.kind === 'activity') && booking.start_time && (
+              <div className="flex items-center justify-between text-accent">
+                <span>Time</span>
+                <span className="font-medium text-brand">{formatTime(booking.start_time)}</span>
+              </div>
+            )}
+            {service?.kind === 'flight' && booking.booking_meta?.seat_class && (
+              <div className="flex items-center justify-between text-accent">
+                <span>Class</span>
+                <span className="font-medium text-brand">{SEAT_CLASS_LABELS[booking.booking_meta.seat_class] ?? booking.booking_meta.seat_class}</span>
+              </div>
+            )}
           </div>
 
           <div className="my-4 h-px bg-mint-200" />

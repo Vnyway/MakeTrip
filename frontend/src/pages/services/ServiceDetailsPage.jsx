@@ -13,17 +13,23 @@ import { CatalogCoverImage } from '../../components/catalog/ServiceCard';
 import { useGeoDictionaries } from '../../features/geo/useGeoDictionaries';
 import { useAuth } from '../../app/auth';
 import { deleteAdminReview } from '../../features/admin/admin.api';
+import { getTagLabel } from '../../features/catalog/catalog.constants';
+import { formatDate, formatTime } from '../../lib/date';
 
 const reviewSchema = z.object({
   rating: z.coerce.number().int().min(1).max(5),
   comment: z.string().trim().max(5000).optional(),
 });
 
-const bookingSchema = z.object({
-  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  persons_count: z.number().int().positive(),
-});
+const SEAT_CLASSES = [
+  { value: 'economy', label: 'Economy', multiplier: 1 },
+  { value: 'business', label: 'Business', multiplier: 1.8 },
+  { value: 'first', label: 'First Class', multiplier: 3 },
+];
+
+function getSeatMultiplier(seatClass) {
+  return SEAT_CLASSES.find((c) => c.value === seatClass)?.multiplier ?? 1;
+}
 
 function getKindLabel(kind) {
   if (kind === 'hotel') return 'Hotel';
@@ -31,13 +37,6 @@ function getKindLabel(kind) {
   if (kind === 'activity') return 'Activity';
   if (kind === 'flight') return 'Flight';
   return 'Service';
-}
-
-function formatDate(value) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleDateString();
 }
 
 function RelatedServiceCard({ item, favorites, geo }) {
@@ -93,7 +92,9 @@ export function ServiceDetailsPage() {
   const [bookingForm, setBookingForm] = useState({
     start_date: '',
     end_date: '',
+    start_time: '',
     persons_count: 1,
+    seat_class: 'economy',
   });
 
   const serviceQuery = useQuery({
@@ -241,26 +242,42 @@ export function ServiceDetailsPage() {
   });
 
   const bookingMutation = useMutation({
-    mutationFn: async ({ start_date, end_date, persons_count }) => {
-      const start = new Date(`${start_date}T00:00:00`);
-      const end = new Date(`${end_date}T00:00:00`);
-      const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000);
-      const nights = diffDays > 0 ? diffDays : 1;
-      const totalPrice = Number(serviceQuery.data?.price_usd || 0) * persons_count * nights;
+    mutationFn: async (form) => {
+      const kind = serviceQuery.data?.kind;
+      const basePrice = Number(serviceQuery.data?.price_usd || 0);
+      const { start_date, end_date, start_time, persons_count, seat_class } = form;
+
+      let totalPrice;
+      let bookingMeta = {};
+
+      if (kind === 'hotel') {
+        const start = new Date(`${start_date}T00:00:00`);
+        const end = new Date(`${end_date}T00:00:00`);
+        const nights = Math.max(1, Math.round((end - start) / 86400000));
+        totalPrice = basePrice * persons_count * nights;
+      } else if (kind === 'flight') {
+        const multiplier = getSeatMultiplier(seat_class);
+        totalPrice = basePrice * persons_count * multiplier;
+        bookingMeta = { seat_class };
+      } else {
+        totalPrice = basePrice * persons_count;
+      }
 
       return createBooking({
         service_id: id,
         start_date,
-        end_date,
+        end_date: kind === 'hotel' ? end_date : start_date,
+        start_time: start_time || null,
         persons_count,
         total_price_usd: totalPrice,
+        booking_meta: bookingMeta,
         status: 'pending',
       });
     },
     onSuccess: async (booking) => {
       toast.success('Booking created.');
       setShowBookingModal(false);
-      setBookingForm({ start_date: '', end_date: '', persons_count: 1 });
+      setBookingForm({ start_date: '', end_date: '', start_time: '', persons_count: 1, seat_class: 'economy' });
       await queryClient.invalidateQueries({ queryKey: ['bookings', 'mine'] });
       navigate(`/bookings/${booking.id}`);
     },
@@ -282,18 +299,27 @@ export function ServiceDetailsPage() {
   }, [reviewsQuery.data]);
 
   const bookingSummary = useMemo(() => {
-    const { start_date, end_date, persons_count } = bookingForm;
-    if (!start_date || !end_date || !persons_count) {
-      return { nights: 0, total: 0 };
+    const { start_date, end_date, persons_count, seat_class } = bookingForm;
+    const kind = serviceQuery.data?.kind;
+    const basePrice = Number(serviceQuery.data?.price_usd || 0);
+
+    if (!start_date || !persons_count) return { nights: 0, total: 0 };
+
+    if (kind === 'hotel') {
+      if (!end_date) return { nights: 0, total: 0 };
+      const start = new Date(`${start_date}T00:00:00`);
+      const end = new Date(`${end_date}T00:00:00`);
+      const nights = Math.max(1, Math.round((end - start) / 86400000));
+      return { nights, total: basePrice * persons_count * nights };
     }
 
-    const start = new Date(`${start_date}T00:00:00`);
-    const end = new Date(`${end_date}T00:00:00`);
-    const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000);
-    const nights = diffDays > 0 ? diffDays : 1;
-    const total = Number(serviceQuery.data?.price_usd || 0) * persons_count * nights;
-    return { nights, total };
-  }, [bookingForm, serviceQuery.data?.price_usd]);
+    if (kind === 'flight') {
+      const multiplier = getSeatMultiplier(seat_class);
+      return { nights: 0, total: basePrice * persons_count * multiplier };
+    }
+
+    return { nights: 0, total: basePrice * persons_count };
+  }, [bookingForm, serviceQuery.data?.price_usd, serviceQuery.data?.kind]);
 
   if (serviceQuery.isLoading) {
     return <div className="rounded-xl border border-mint-200 bg-white p-8 text-sm text-accent shadow-card">Loading service details...</div>;
@@ -401,6 +427,19 @@ export function ServiceDetailsPage() {
           <p className="text-sm text-accent">
             {service.description || 'No description provided for this service yet.'}
           </p>
+
+          {service.tags?.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {service.tags.map((slug) => (
+                <span
+                  key={slug}
+                  className="rounded-full bg-mint-100 px-3 py-1 text-xs font-medium text-brand"
+                >
+                  {getTagLabel(slug)}
+                </span>
+              ))}
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-lg bg-mint-100 p-3">
@@ -517,61 +556,116 @@ export function ServiceDetailsPage() {
               className="space-y-4 p-5"
               onSubmit={(event) => {
                 event.preventDefault();
-                try {
-                  const parsed = bookingSchema.parse(bookingForm);
-                  const start = new Date(`${parsed.start_date}T00:00:00`);
-                  const end = new Date(`${parsed.end_date}T00:00:00`);
-                  if (end < start) {
-                    toast.error('Check-out date cannot be earlier than check-in date.');
-                    return;
-                  }
-                  bookingMutation.mutate(parsed);
-                } catch (error) {
-                  toast.error(getErrorMessage(error, 'Invalid booking data.'));
+                const { start_date, end_date, persons_count } = bookingForm;
+                if (!start_date) { toast.error('Please select a date.'); return; }
+                if (service.kind === 'hotel' && !end_date) { toast.error('Please select check-out date.'); return; }
+                if (service.kind === 'hotel') {
+                  const s = new Date(`${start_date}T00:00:00`);
+                  const e = new Date(`${end_date}T00:00:00`);
+                  if (e <= s) { toast.error('Check-out must be after check-in.'); return; }
                 }
+                bookingMutation.mutate(bookingForm);
               }}
             >
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-brand" htmlFor="bookingStartDate">
-                    Check-in Date
-                  </label>
-                  <input
-                    id="bookingStartDate"
-                    type="date"
-                    value={bookingForm.start_date}
-                    onChange={(event) => setBookingForm((prev) => ({ ...prev, start_date: event.target.value }))}
-                    className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm text-brand"
-                    required
-                  />
+              {/* HOTEL: check-in / check-out dates */}
+              {service.kind === 'hotel' && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-brand" htmlFor="bkStartDate">Check-in Date</label>
+                    <input id="bkStartDate" type="date" required
+                      value={bookingForm.start_date}
+                      onChange={(e) => setBookingForm((p) => ({ ...p, start_date: e.target.value }))}
+                      className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm text-brand"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-brand" htmlFor="bkEndDate">Check-out Date</label>
+                    <input id="bkEndDate" type="date" required
+                      value={bookingForm.end_date}
+                      onChange={(e) => setBookingForm((p) => ({ ...p, end_date: e.target.value }))}
+                      className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm text-brand"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-brand" htmlFor="bookingEndDate">
-                    Check-out Date
-                  </label>
-                  <input
-                    id="bookingEndDate"
-                    type="date"
-                    value={bookingForm.end_date}
-                    onChange={(event) => setBookingForm((prev) => ({ ...prev, end_date: event.target.value }))}
-                    className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm text-brand"
-                    required
-                  />
+              )}
+
+              {/* RESTAURANT / ACTIVITY: date + time */}
+              {(service.kind === 'restaurant' || service.kind === 'activity') && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-brand" htmlFor="bkDate">Date</label>
+                    <input id="bkDate" type="date" required
+                      value={bookingForm.start_date}
+                      onChange={(e) => setBookingForm((p) => ({ ...p, start_date: e.target.value }))}
+                      className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm text-brand"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-brand" htmlFor="bkTime">Time</label>
+                    <input id="bkTime" type="time" required
+                      value={bookingForm.start_time}
+                      onChange={(e) => setBookingForm((p) => ({ ...p, start_time: e.target.value }))}
+                      className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm text-brand"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="rounded-xl bg-surface p-3 text-sm text-brand">
-                Duration: <span className="font-semibold">{bookingSummary.nights} nights</span>
-              </div>
+              {/* FLIGHT: departure date + time + seat class */}
+              {service.kind === 'flight' && (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-brand" htmlFor="bkDepDate">Departure Date</label>
+                      <input id="bkDepDate" type="date" required
+                        value={bookingForm.start_date}
+                        onChange={(e) => setBookingForm((p) => ({ ...p, start_date: e.target.value }))}
+                        className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm text-brand"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-brand" htmlFor="bkDepTime">Departure Time</label>
+                      <input id="bkDepTime" type="time" required
+                        value={bookingForm.start_time}
+                        onChange={(e) => setBookingForm((p) => ({ ...p, start_time: e.target.value }))}
+                        className="w-full rounded-lg border border-mint-200 bg-surface px-3 py-2 text-sm text-brand"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-brand">Seat Class</label>
+                    <div className="flex gap-2">
+                      {SEAT_CLASSES.map((sc) => (
+                        <button key={sc.value} type="button"
+                          onClick={() => setBookingForm((p) => ({ ...p, seat_class: sc.value }))}
+                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                            bookingForm.seat_class === sc.value
+                              ? 'border-brand bg-brand text-white'
+                              : 'border-mint-200 bg-surface text-brand hover:border-brand'
+                          }`}
+                        >
+                          {sc.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
+              {bookingSummary.nights > 0 && (
+                <div className="rounded-xl bg-surface p-3 text-sm text-brand">
+                  Duration: <span className="font-semibold">{bookingSummary.nights} nights</span>
+                </div>
+              )}
+
+              {/* Persons count — all except flight (per ticket) */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-brand">Number of Guests</label>
+                <label className="mb-2 block text-sm font-medium text-brand">
+                  {service.kind === 'flight' ? 'Number of Passengers' : 'Number of Guests'}
+                </label>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setBookingForm((prev) => ({ ...prev, persons_count: Math.max(1, Number(prev.persons_count) - 1) }))
-                    }
+                  <button type="button"
+                    onClick={() => setBookingForm((p) => ({ ...p, persons_count: Math.max(1, Number(p.persons_count) - 1) }))}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-mint-200 bg-surface text-brand"
                   >
                     <Minus size={14} />
@@ -579,23 +673,28 @@ export function ServiceDetailsPage() {
                   <div className="flex h-10 min-w-20 items-center justify-center rounded-lg border border-mint-200 bg-surface px-3 text-brand">
                     {bookingForm.persons_count}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setBookingForm((prev) => ({ ...prev, persons_count: Number(prev.persons_count) + 1 }))}
+                  <button type="button"
+                    onClick={() => setBookingForm((p) => ({ ...p, persons_count: Number(p.persons_count) + 1 }))}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-brand bg-white text-brand"
                   >
                     <Plus size={14} />
                   </button>
-                  <span className="text-sm text-accent">{bookingForm.persons_count} people</span>
+                  <span className="text-sm text-accent">{bookingForm.persons_count}</span>
                 </div>
               </div>
 
               <div className="rounded-xl bg-surface p-4">
                 <h4 className="text-xl font-semibold text-brand">Price Summary</h4>
                 <div className="mt-2 flex items-center justify-between text-sm text-accent">
-                  <span>
-                    ${Number(service.price_usd || 0).toFixed(0)} x {bookingForm.persons_count} guests x {bookingSummary.nights} nights
-                  </span>
+                  {service.kind === 'hotel' && (
+                    <span>${Number(service.price_usd || 0).toFixed(0)} × {bookingForm.persons_count} guests × {bookingSummary.nights} nights</span>
+                  )}
+                  {service.kind === 'flight' && (
+                    <span>${Number(service.price_usd || 0).toFixed(0)} × {bookingForm.persons_count} passengers × {SEAT_CLASSES.find((c) => c.value === bookingForm.seat_class)?.multiplier ?? 1}× ({bookingForm.seat_class})</span>
+                  )}
+                  {(service.kind === 'restaurant' || service.kind === 'activity') && (
+                    <span>${Number(service.price_usd || 0).toFixed(0)} × {bookingForm.persons_count} guests</span>
+                  )}
                   <span className="font-semibold text-brand">${Number(bookingSummary.total || 0).toFixed(0)}</span>
                 </div>
                 <div className="my-3 h-px bg-mint-200" />
@@ -606,9 +705,7 @@ export function ServiceDetailsPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <button type="button" className="btn-soft" onClick={() => setShowBookingModal(false)}>
-                  Cancel
-                </button>
+                <button type="button" className="btn-soft" onClick={() => setShowBookingModal(false)}>Cancel</button>
                 <button type="submit" className="btn-primary" disabled={bookingMutation.isPending}>
                   {bookingMutation.isPending ? 'Creating...' : 'Proceed to Payment'}
                 </button>

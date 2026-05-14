@@ -27,6 +27,9 @@ export function useCatalogQueryState({ fixedKind }) {
       activity_kind: searchParams.get('activity_kind') || '',
       origin_city_id: asNumberOrUndefined(searchParams.get('origin_city_id')),
       destination_city_id: asNumberOrUndefined(searchParams.get('destination_city_id')),
+      tags: searchParams.get('tags')
+        ? searchParams.get('tags').split(',').filter(Boolean)
+        : [],
     };
 
     return q;
@@ -67,6 +70,12 @@ export function useCatalogQueryState({ fixedKind }) {
     Object.keys(payload).forEach((key) => {
       if (payload[key] === '' || payload[key] == null) delete payload[key];
     });
+
+    if (Array.isArray(payload.tags) && payload.tags.length) {
+      payload.tags = payload.tags.join(',');
+    } else {
+      delete payload.tags;
+    }
 
     return payload;
   }, [fixedKind, query]);
