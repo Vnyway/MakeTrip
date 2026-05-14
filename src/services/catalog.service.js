@@ -32,6 +32,8 @@ function mapServiceRow(row) {
     created_at: row.created_at,
     updated_at: row.updated_at,
     kind: row.kind,
+    avg_rating: row.avg_rating != null ? Number(row.avg_rating) : null,
+    review_count: row.review_count != null ? Number(row.review_count) : 0,
   };
 
   if (base.kind === 'hotel') {
@@ -267,7 +269,9 @@ async function listServices(filters, userId) {
         WHERE sm.service_id = s.id AND sm.media_type = 'image'
         ORDER BY sm.sort_order ASC, sm.id ASC
         LIMIT 1
-      ) AS cover_s3_url
+      ) AS cover_s3_url,
+      (SELECT ROUND(AVG(rv.rating)::numeric, 1)::float8 FROM reviews rv WHERE rv.service_id = s.id) AS avg_rating,
+      (SELECT COUNT(*)::int FROM reviews rv WHERE rv.service_id = s.id) AS review_count
     FROM services s
     LEFT JOIN hotels h ON h.service_id = s.id
     LEFT JOIN restaurants r ON r.service_id = s.id
@@ -370,7 +374,9 @@ const detailQueryPrefix = `
     f.depart_at AS flight_depart_at,
     f.arrive_at AS flight_arrive_at,
     a.activity_kind AS activity_kind,
-    a.duration_minutes AS activity_duration_minutes
+    a.duration_minutes AS activity_duration_minutes,
+    (SELECT ROUND(AVG(rv.rating)::numeric, 1)::float8 FROM reviews rv WHERE rv.service_id = s.id) AS avg_rating,
+    (SELECT COUNT(*)::int FROM reviews rv WHERE rv.service_id = s.id) AS review_count
   FROM services s
   LEFT JOIN hotels h ON h.service_id = s.id
   LEFT JOIN restaurants r ON r.service_id = s.id

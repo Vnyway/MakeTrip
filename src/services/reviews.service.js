@@ -12,14 +12,21 @@ const SERVICE_KIND_SELECT = `
 
 async function listByService(serviceId) {
   const result = await pool.query(
-    `SELECT rating, comment, created_at
+    `SELECT id, user_id, rating, comment, created_at, updated_at
      FROM reviews
      WHERE service_id = $1
      ORDER BY created_at DESC`,
     [serviceId],
   );
 
-  return result.rows;
+  return result.rows.map((row) => ({
+    id: row.id,
+    user_id: row.user_id,
+    rating: Number(row.rating),
+    comment: row.comment,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }));
 }
 
 async function listMine(userId) {

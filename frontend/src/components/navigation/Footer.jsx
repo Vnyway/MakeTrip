@@ -4,7 +4,6 @@ import { useAuth } from '../../app/auth';
 
 const browseLinks = [
   { to: '/', label: 'Home' },
-  { to: '/catalog', label: 'Catalog' },
   { to: '/hotels', label: 'Hotels' },
   { to: '/restaurants', label: 'Restaurants' },
   { to: '/activities', label: 'Activities' },

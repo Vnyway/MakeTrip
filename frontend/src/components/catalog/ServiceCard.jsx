@@ -138,7 +138,15 @@ export function ServiceCard({
         </div>
         <p className="text-xs text-brand">{AttributeBadge({ service, getCityName: geo.getCityName })}</p>
         <div className="flex items-center gap-1 text-xs text-accent">
-          <Star size={12} className="text-amber-500" /> 4.8 (sample)
+          <Star
+            size={12}
+            className={`shrink-0 ${service.avg_rating ? 'text-amber-500' : 'text-amber-500/40'}`}
+            aria-hidden
+          />
+          {service.avg_rating
+            ? <span className="tabular-nums">{service.avg_rating.toFixed(1)} <span className="text-accent/70">({service.review_count})</span></span>
+            : <span className="text-accent/60">No reviews</span>
+          }
         </div>
         <div className="mt-3 flex items-center justify-between border-t border-mint-200 pt-3">
           <p className="text-xl font-bold text-brand">{formatPrice(service.price_usd)}</p>

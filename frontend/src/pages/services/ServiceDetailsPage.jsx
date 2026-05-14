@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Heart, MapPin, Star, Minus, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { z } from 'zod';
@@ -11,6 +11,8 @@ import { createBooking } from '../../features/bookings/bookings.api';
 import { AddToTourModal } from '../../components/tours/AddToTourModal';
 import { CatalogCoverImage } from '../../components/catalog/ServiceCard';
 import { useGeoDictionaries } from '../../features/geo/useGeoDictionaries';
+import { useAuth } from '../../app/auth';
+import { deleteAdminReview } from '../../features/admin/admin.api';
 
 const reviewSchema = z.object({
   rating: z.coerce.number().int().min(1).max(5),
@@ -75,6 +77,8 @@ function RelatedServiceCard({ item, favorites, geo }) {
 
 export function ServiceDetailsPage() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const auth = useAuth();
   const favorites = useFavorites();
   const geo = useGeoDictionaries();
   const queryClient = useQueryClient();
@@ -147,6 +151,25 @@ export function ServiceDetailsPage() {
     enabled: Boolean(id),
   });
 
+  const myReview = useMemo(() => {
+    const uid = auth.user?.id;
+    if (!uid || !reviewsQuery.data?.length) return null;
+    return reviewsQuery.data.find((r) => r.user_id === uid) ?? null;
+  }, [auth.user?.id, reviewsQuery.data]);
+
+  useEffect(() => {
+    if (!myReview) return;
+    setRating(myReview.rating);
+    setComment(myReview.comment || '');
+  }, [myReview?.id, myReview?.rating, myReview?.comment]);
+
+  useEffect(() => {
+    if (searchParams.get('review') !== 'edit') return;
+    if (!auth.isAuthenticated || auth.isBootstrapping) return;
+    if (!reviewsQuery.data?.length || !myReview?.id) return;
+    setShowReviewForm(true);
+  }, [searchParams, auth.isAuthenticated, auth.isBootstrapping, reviewsQuery.data, myReview?.id]);
+
   const relatedQuery = useQuery({
     queryKey: ['service-related', id, serviceQuery.data?.kind],
     queryFn: async () => {
@@ -167,6 +190,18 @@ export function ServiceDetailsPage() {
 
   const reviewMutation = useMutation({
     mutationFn: async (payload) => {
+      const list = queryClient.getQueryData(['service-reviews', id]) || [];
+      const uid = auth.user?.id;
+      const existing = uid ? list.find((r) => r.user_id === uid) : null;
+
+      if (existing) {
+        await api.patch(`/api/reviews/${id}`, {
+          rating: payload.rating,
+          comment: payload.comment || null,
+        });
+        return;
+      }
+
       try {
         await api.post('/api/reviews', {
           service_id: id,
@@ -181,7 +216,6 @@ export function ServiceDetailsPage() {
           });
           return;
         }
-
         throw error;
       }
     },
@@ -189,9 +223,21 @@ export function ServiceDetailsPage() {
       toast.success('Review saved.');
       setShowReviewForm(false);
       setComment('');
+      await queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
       await reviewsQuery.refetch();
     },
     onError: (error) => toast.error(getErrorMessage(error, 'Could not submit review.')),
+  });
+
+  const deleteReviewMutation = useMutation({
+    mutationFn: deleteAdminReview,
+    onSuccess: async () => {
+      toast.success('Review deleted.');
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'reviews'] });
+      await queryClient.invalidateQueries({ queryKey: ['service-reviews', id] });
+      await queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error, 'Could not delete review.')),
   });
 
   const bookingMutation = useMutation({
@@ -396,7 +442,7 @@ export function ServiceDetailsPage() {
               </button>
             </div>
             <button type="button" className="btn-soft mt-2 w-full" onClick={() => setShowReviewForm((prev) => !prev)}>
-              {showReviewForm ? 'Close review form' : 'Add review'}
+              {showReviewForm ? 'Close review form' : myReview ? 'Edit your review' : 'Add review'}
             </button>
           </div>
 
@@ -442,7 +488,7 @@ export function ServiceDetailsPage() {
               />
 
               <button type="submit" className="btn-primary" disabled={reviewMutation.isPending}>
-                {reviewMutation.isPending ? 'Saving review...' : 'Submit review'}
+                {reviewMutation.isPending ? 'Saving review...' : myReview ? 'Save changes' : 'Submit review'}
               </button>
             </form>
           ) : null}
@@ -585,11 +631,26 @@ export function ServiceDetailsPage() {
           <div className="rounded-xl border border-mint-200 bg-white p-4 text-sm text-accent shadow-card">No reviews yet.</div>
         ) : (
           <div className="space-y-3">
-            {(reviewsQuery.data || []).map((review, index) => (
-              <article key={`${review.created_at}-${index}`} className="rounded-xl border border-mint-200 bg-white p-4 shadow-card">
-                <div className="flex items-center justify-between">
+            {(reviewsQuery.data || []).map((review) => (
+              <article key={review.id} className="rounded-xl border border-mint-200 bg-white p-4 shadow-card">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-brand">Rating: {review.rating}/5</p>
-                  <p className="text-xs text-accent">{formatDate(review.created_at)}</p>
+                  <div className="flex items-center gap-2">
+                    {auth.user?.id && review.user_id === auth.user.id ? (
+                      <span className="rounded-full bg-mint-100 px-2 py-0.5 text-[11px] font-medium text-brand">Your review</span>
+                    ) : null}
+                    <p className="text-xs text-accent">{formatDate(review.created_at)}</p>
+                    {auth.isAdmin ? (
+                      <button
+                        type="button"
+                        className="btn-soft border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                        disabled={deleteReviewMutation.isPending}
+                        onClick={() => deleteReviewMutation.mutate(review.id)}
+                      >
+                        Delete
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
                 <p className="mt-2 text-sm text-accent">{review.comment || 'No comment provided.'}</p>
               </article>

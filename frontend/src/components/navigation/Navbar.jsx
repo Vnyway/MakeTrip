@@ -3,7 +3,6 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import {
   MdHome,
-  MdTravelExplore,
   MdHotel,
   MdRestaurantMenu,
   MdHiking,
@@ -15,7 +14,6 @@ import {
   MdPerson,
   MdLogin,
   MdLogout,
-  MdAdminPanelSettings,
   MdDashboard,
   MdAddBusiness,
   MdAssignment,
@@ -26,10 +24,9 @@ import { IoAirplaneOutline } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../app/auth';
 
-/** Catalog & trips (same order as before redesign). */
+/** Browse & trips (no separate /catalog — home is the catalog). */
 const catalogNavItems = [
   { to: '/', label: 'Home', Icon: MdHome },
-  { to: '/catalog', label: 'Catalog', Icon: MdTravelExplore },
   { to: '/hotels', label: 'Hotels', Icon: MdHotel },
   { to: '/restaurants', label: 'Restaurants', Icon: MdRestaurantMenu },
   { to: '/activities', label: 'Activities', Icon: MdHiking },
@@ -76,6 +73,8 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
 
   const showMainNav = auth.isAuthenticated && !auth.isBootstrapping;
+  /** Admin has many more links; keep burger until ~full HD so tabs are not clipped. */
+  const desktopNavBp = auth.isAdmin ? 'min-[1920px]' : '2xl';
 
   const desktopNavItems = [
     ...catalogNavItems,
@@ -102,13 +101,15 @@ export function Navbar() {
         </Link>
 
         {showMainNav ? (
-          <nav className="mx-2 hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto py-1 xl:flex xl:justify-center">
+          <nav
+            className={`mx-2 hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto py-1 ${desktopNavBp}:flex ${desktopNavBp}:justify-center`}
+          >
             {desktopNavItems.map((item) => (
               <NavItemLink key={item.to} to={item.to} label={item.label} Icon={item.Icon} />
             ))}
           </nav>
         ) : (
-          <div className="hidden flex-1 xl:block" aria-hidden />
+          <div className={`hidden flex-1 ${desktopNavBp}:block`} aria-hidden />
         )}
 
         <div className="flex shrink-0 items-center gap-2">
@@ -129,7 +130,7 @@ export function Navbar() {
             <>
               <button
                 type="button"
-                className="btn-soft hidden items-center gap-2 rounded-lg px-3 py-2 text-sm xl:inline-flex"
+                className={`btn-soft hidden items-center gap-2 rounded-lg px-3 py-2 text-sm ${desktopNavBp}:inline-flex`}
                 onClick={handleLogout}
               >
                 <MdLogout className="text-lg" aria-hidden />
@@ -138,7 +139,7 @@ export function Navbar() {
               {showMainNav ? (
                 <button
                   type="button"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-mint-200 bg-white text-brand xl:hidden"
+                  className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border border-mint-200 bg-white text-brand ${desktopNavBp}:hidden`}
                   onClick={() => setOpen((prev) => !prev)}
                   aria-expanded={open}
                   aria-label={open ? 'Close menu' : 'Open menu'}
@@ -154,7 +155,7 @@ export function Navbar() {
       </div>
 
       {open && showMainNav ? (
-        <div className="border-t border-mint-200 bg-white xl:hidden">
+        <div className={`border-t border-mint-200 bg-white ${desktopNavBp}:hidden`}>
           <nav className="mx-auto flex max-h-[min(70vh,32rem)] max-w-[1800px] flex-col gap-1 overflow-y-auto px-4 py-3 sm:px-6">
             {desktopNavItems.map((item) => (
               <NavItemLink

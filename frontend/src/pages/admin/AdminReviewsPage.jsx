@@ -15,6 +15,8 @@ export function AdminReviewsPage() {
     onSuccess: async () => {
       toast.success('Review deleted.');
       await queryClient.invalidateQueries({ queryKey: ['admin', 'reviews'] });
+      await queryClient.invalidateQueries({ queryKey: ['service-reviews'] });
+      await queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
     },
     onError: (error) => toast.error(getErrorMessage(error, 'Could not delete review.')),
   });

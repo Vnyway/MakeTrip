@@ -84,7 +84,7 @@ function ReviewCard({ item, geo }) {
           </div>
 
           <Link
-            to={`/services/${service.id}`}
+            to={`/services/${service.id}?review=edit`}
             className="mt-3 inline-flex items-center justify-center rounded-lg border border-mint-300 bg-white px-3 py-1.5 text-xs font-medium text-brand transition group-hover:border-brand group-hover:bg-mint-100"
           >
             View service & edit review
