@@ -5,6 +5,7 @@ const { catchAsync } = require('../utils/async');
 const { pool } = require('../config/db');
 const { uuidSchema } = require('../validators/services.validator');
 const { bookingPatchSchema } = require('../validators/userActivity.validator');
+const { bootstrapAllUsers } = require('../services/similarity.service');
 
 const router = express.Router();
 
@@ -127,6 +128,14 @@ router.get(
        LIMIT 300`,
     );
     return res.json({ items: result.rows });
+  }),
+);
+
+router.post(
+  '/jobs/bootstrap-similarity',
+  catchAsync(async (_req, res) => {
+    const result = await bootstrapAllUsers();
+    return res.json({ ok: true, ...result });
   }),
 );
 

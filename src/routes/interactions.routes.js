@@ -3,6 +3,7 @@ const { authenticate } = require('../middleware/auth.middleware');
 const { catchAsync } = require('../utils/async');
 const { pool } = require('../config/db');
 const { assertServiceExists, logInteraction } = require('../services/userInteractions.service');
+const { triggerSimilarityUpdate } = require('../services/similarity.service');
 const { interactionLogSchema } = require('../validators/userActivity.validator');
 
 const router = express.Router();
@@ -35,6 +36,7 @@ router.post(
       client.release();
     }
 
+    setImmediate(() => triggerSimilarityUpdate(req.user.id));
     return res.status(204).send();
   }),
 );

@@ -3,6 +3,7 @@ const { authenticate } = require('../middleware/auth.middleware');
 const { catchAsync } = require('../utils/async');
 const reviewsService = require('../services/reviews.service');
 const { assertServiceExists } = require('../services/userInteractions.service');
+const { triggerSimilarityUpdate } = require('../services/similarity.service');
 const { pool } = require('../config/db');
 const {
   reviewCreateSchema,
@@ -38,6 +39,7 @@ router.post(
   catchAsync(async (req, res) => {
     const body = reviewCreateSchema.parse(req.body);
     const review = await reviewsService.createReview(req.user.id, body);
+    setImmediate(() => triggerSimilarityUpdate(req.user.id));
     return res.status(201).json({ review });
   }),
 );
@@ -50,6 +52,7 @@ router.patch(
     const body = reviewPatchSchema.parse(req.body || {});
 
     const review = await reviewsService.updateReview(req.user.id, serviceId, body);
+    setImmediate(() => triggerSimilarityUpdate(req.user.id));
     return res.json({ review });
   }),
 );

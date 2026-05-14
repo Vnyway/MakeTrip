@@ -2,6 +2,7 @@ const express = require('express');
 const { authenticate } = require('../middleware/auth.middleware');
 const { catchAsync } = require('../utils/async');
 const bookingsService = require('../services/bookings.service');
+const { triggerSimilarityUpdate } = require('../services/similarity.service');
 const { bookingCreateSchema, bookingPatchSchema } = require('../validators/userActivity.validator');
 const { uuidSchema } = require('../validators/services.validator');
 
@@ -36,6 +37,7 @@ router.post(
   catchAsync(async (req, res) => {
     const body = bookingCreateSchema.parse(req.body);
     const booking = await bookingsService.createBooking(req.user.id, body);
+    setImmediate(() => triggerSimilarityUpdate(req.user.id));
     return res.status(201).json({ booking });
   }),
 );
